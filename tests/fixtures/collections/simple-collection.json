@@ -1,0 +1,44 @@
+{
+  "info": {
+    "name": "Simple Test Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "test-simple-collection"
+  },
+  "item": [
+    {
+      "name": "Get Users",
+      "request": {
+        "method": "GET",
+        "url": "https://jsonplaceholder.typicode.com/users",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Create User",
+      "request": {
+        "method": "POST",
+        "url": "https://jsonplaceholder.typicode.com/users",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

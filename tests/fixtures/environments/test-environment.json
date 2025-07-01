@@ -1,0 +1,21 @@
+{
+  "name": "Test Environment",
+  "_postman_variable_scope": "environment",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "https://api.test.com",
+      "enabled": true
+    },
+    {
+      "key": "apiKey",
+      "value": "test-api-key-123",
+      "enabled": true
+    },
+    {
+      "key": "disabledVar",
+      "value": "should-not-appear",
+      "enabled": false
+    }
+  ]
+}
