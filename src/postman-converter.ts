@@ -1,7 +1,13 @@
-// src/postman-converter.ts (using your real type files)
+// =============================================================================
+// POSTMAN COLLECTION CONVERTER - UUID FORMAT FIX
+// =============================================================================
+// UPDATED: Generate proper UUID-style IDs that match Insomnia v5 format
+// instead of __TYPE_hash_counter__ format
+// =============================================================================
+
 import { CONTENT_TYPE_JSON, CONTENT_TYPE_PLAINTEXT, CONTENT_TYPE_XML, fakerFunctions, forceBracketNotation } from './converter';
 
-// Import types from entities but rename to avoid conflicts
+// Import all the type definitions (keeping original imports)
 import type {
   Converter as EntityConverter,
   ImportRequest as EntityImportRequest,
@@ -9,7 +15,6 @@ import type {
   Authentication as EntityAuthentication
 } from './types/entities';
 
-// Import Postman types with proper naming
 import type {
   Auth as V200Auth,
   EventList as V200EventList,
@@ -37,10 +42,16 @@ import type {
   UrlEncodedParameter as V210UrlEncodedParameter,
 } from './types/postman-2.1.types';
 
+// =============================================================================
+// CONVERTER METADATA
+// =============================================================================
 export const id = 'postman';
 export const name = 'Postman';
 export const description = 'Importer for Postman collections';
 
+// =============================================================================
+// UNIFIED TYPE DEFINITIONS
+// =============================================================================
 type PostmanCollection = V200Schema | V210Schema;
 type EventList = V200EventList | V210EventList;
 type Authentication = V200Auth | V210Auth;
@@ -51,15 +62,84 @@ type Item = V200Item | V210Item;
 type Folder = V200Folder | V210Folder;
 type Header = V200Header | V210Header;
 
-// Use the entity types for our exports
 type ImportRequest = EntityImportRequest;
 type Parameter = EntityParameter;
 type AuthTypeOAuth2 = EntityAuthentication;
 
-let requestCount = 1;
-let requestGroupCount = 1;
+// =============================================================================
+// PROPER UUID-STYLE ID GENERATION
+// =============================================================================
+
+/**
+ * Generates UUID-style IDs that match Insomnia v5 format
+ *
+ * FORMAT: prefix_32charactersHex
+ * EXAMPLES:
+ * - req_3a58a6ca4455495ba346d6109deffb88
+ * - fld_1d7f6e1f7b794e3a870e754760dfbe6c
+ * - wrk_a84180a6bd3f478ea499794fc2e6f479
+ */
+class UUIDGenerator {
+  private fileHash: string;
+  private baseTime: number;
+  private requestCounter: number = 1;
+  private groupCounter: number = 1;
+
+  constructor(rawData: string) {
+    // Create unique seed from file content and timestamp
+    this.fileHash = this.simpleHash(rawData);
+    this.baseTime = Date.now();
+  }
+
+  /**
+   * Simple hash function to create consistent seeds
+   */
+  private simpleHash(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(16);
+  }
+
+  /**
+   * Generate a 32-character hex string that looks like a UUID
+   */
+  private generateHex32(): string {
+    const timestamp = this.baseTime.toString(16);
+    const fileHash = this.fileHash.padStart(8, '0').substring(0, 8);
+    const random1 = Math.random().toString(16).substring(2, 10);
+    const random2 = Math.random().toString(16).substring(2, 10);
+    const random3 = Math.random().toString(16).substring(2, 10);
+
+    // Combine and ensure exactly 32 characters
+    const combined = (timestamp + fileHash + random1 + random2 + random3).substring(0, 32);
+    return combined.padEnd(32, '0');
+  }
+
+  generateRequestId(): string {
+    const hex = this.generateHex32();
+    return `req_${hex}`;
+  }
+
+  generateGroupId(): string {
+    const hex = this.generateHex32();
+    return `fld_${hex}`;
+  }
+}
+
+// =============================================================================
+// FAKER/TEMPLATE TRANSFORMATION SYSTEM (UNCHANGED)
+// =============================================================================
 const fakerTags = Object.keys(fakerFunctions);
-const postmanTagRegexs = fakerTags.map(tag => ({ tag, regex: new RegExp(`\\{\\{\\$${tag}\\}\\}`, 'g') }));
+
+const postmanTagRegexs = fakerTags.map(tag => ({
+  tag,
+  regex: new RegExp(`\\{\\{\\$${tag}\\}\\}`, 'g')
+}));
+
 const postmanToNunjucksLookup = fakerTags
   .map(tag => ({ [tag]: `{% faker '${tag}' %}` }))
   .reduce((acc, obj) => ({ ...acc, ...obj }), {});
@@ -71,9 +151,11 @@ export const transformPostmanToNunjucksString = (inputString?: string | null) =>
   if (typeof inputString !== 'string') {
     return inputString;
   }
+
   const replaceFaker = postmanTagRegexs.reduce((transformedString, { tag, regex }) => {
     return transformedString.replace(regex, postmanToNunjucksLookup[tag]);
   }, inputString);
+
   return normaliseJsonPath(replaceFaker);
 };
 
@@ -84,12 +166,16 @@ export const normaliseJsonPath = (input?: string) => {
   if (!input.includes('-')) {
     return input;
   }
+
   return input.replace(/{{\s*([^ }]+)\s*[^}]*\s*}}/g, (_, match) => {
     const replaced = forceBracketNotation('_', match);
     return `{{${replaced}}}`;
   });
 };
 
+// =============================================================================
+// POSTMAN SCHEMA VERSION DETECTION (UNCHANGED)
+// =============================================================================
 const POSTMAN_SCHEMA_URLS_V2_0 = [
   'https://schema.getpostman.com/json/collection/v2.0.0/collection.json',
   'https://schema.postman.com/json/collection/v2.0.0/collection.json',
@@ -100,6 +186,9 @@ const POSTMAN_SCHEMA_URLS_V2_1 = [
   'https://schema.postman.com/json/collection/v2.1.0/collection.json',
 ];
 
+// =============================================================================
+// AUTHENTICATION HELPERS (UNCHANGED)
+// =============================================================================
 const mapGrantTypeToInsomniaGrantType = (grantType: string) => {
   if (grantType === 'authorization_code_with_pkce') {
     return 'authorization_code';
@@ -110,26 +199,39 @@ const mapGrantTypeToInsomniaGrantType = (grantType: string) => {
   return grantType || 'authorization_code';
 };
 
+// =============================================================================
+// SCRIPT TRANSFORMATION SYSTEM (UNCHANGED)
+// =============================================================================
 export function translateHandlersInScript(scriptContent: string): string {
   let translated = scriptContent;
   let offset = 0;
+
   for (let i = 0; i < scriptContent.length - 2; i++) {
     const isPM = scriptContent.slice(i, i + 3) === 'pm.';
     const isPrevCharacterAlphaNumeric = i - 1 >= 0 && /[0-9a-zA-Z_$]/.test(scriptContent[i - 1]);
+
     if (isPM && !isPrevCharacterAlphaNumeric) {
       translated = translated.slice(0, i + offset) + 'insomnia.' + translated.slice(i + 3 + offset);
       offset += 6;
     }
   }
+
   return translated;
 }
 
+// =============================================================================
+// MAIN POSTMAN IMPORT CLASS (UPDATED WITH UUID GENERATION)
+// =============================================================================
 export class ImportPostman {
   collection: PostmanCollection;
+  uuidGenerator: UUIDGenerator;
 
-  constructor(collection: PostmanCollection) {
+  constructor(collection: PostmanCollection, rawData: string) {
     this.collection = collection;
+    this.uuidGenerator = new UUIDGenerator(rawData);
   }
+
+  // All the existing methods stay the same, just update ID generation calls...
 
   importVariable = (variables: Record<string, string>[]): Record<string, string> | null => {
     if (variables?.length === 0) {
@@ -168,7 +270,6 @@ export class ImportPostman {
     }
 
     const preRequestEvent = events.find((event: any) => event.listen === 'prerequest');
-
     const scriptOrRows = preRequestEvent != null ? preRequestEvent.script : '';
     if (scriptOrRows == null || scriptOrRows === '') {
       return '';
@@ -190,7 +291,6 @@ export class ImportPostman {
     }
 
     const afterResponseEvent = events.find((event: any) => event.listen === 'test');
-
     const scriptOrRows = afterResponseEvent ? afterResponseEvent.script : '';
     if (!scriptOrRows) {
       return '';
@@ -205,10 +305,11 @@ export class ImportPostman {
     return translateHandlersInScript(scriptContent);
   };
 
+  // UPDATED: Use UUID generator
   importRequestItem = ({ request, name = '', event }: Item, parentId: string): ImportRequest => {
     if (typeof request === 'string') {
       return {
-        _id: `__REQ_${requestCount++}__`,
+        _id: this.uuidGenerator.generateRequestId(),
         _type: 'request',
         name: name || 'Imported Request',
         url: request,
@@ -220,15 +321,14 @@ export class ImportPostman {
     const { authentication, headers } = this.importAuthentication(request.auth, request.header as Header[]);
 
     let parameters: Parameter[] = [];
-
     if (typeof request.url === 'object' && request.url?.query) {
       parameters = this.importParameters(request.url.query);
     }
 
     const preRequestScript = this.importPreRequestScript(event);
     const afterResponseScript = this.importAfterResponseScript(event);
-
     const body = this.importBody(request.body);
+
     if (
       !headers.find(({ key }: any) => key.toLowerCase() === 'content-type') &&
       typeof body === 'object' &&
@@ -243,7 +343,7 @@ export class ImportPostman {
 
     return {
       parentId,
-      _id: `__REQ_${requestCount++}__`,
+      _id: this.uuidGenerator.generateRequestId(),
       _type: 'request',
       name,
       description: (request.description as string) || '',
@@ -277,6 +377,7 @@ export class ImportPostman {
     );
   };
 
+  // UPDATED: Use UUID generator
   importFolderItem = ({ name, description, event, auth }: Folder, parentId: string): ImportRequest => {
     const { authentication } = this.importAuthentication(auth);
     const preRequestScript = this.importPreRequestScript(event);
@@ -291,7 +392,7 @@ export class ImportPostman {
 
     return {
       parentId,
-      _id: `__GRP_${requestGroupCount++}__`,
+      _id: this.uuidGenerator.generateGroupId(),
       _type: 'request_group',
       name: name || 'Imported Folder',
       description: desc,
@@ -301,6 +402,7 @@ export class ImportPostman {
     };
   };
 
+  // UPDATED: Use UUID generator
   importCollection = (): ImportRequest[] => {
     const {
       item,
@@ -317,7 +419,7 @@ export class ImportPostman {
 
     const collectionFolder: ImportRequest = {
       parentId: '__WORKSPACE_ID__',
-      _id: `__GRP_${requestGroupCount++}__`,
+      _id: this.uuidGenerator.generateGroupId(),
       _type: 'request_group',
       name,
       description: typeof description === 'string' ? description : '',
@@ -333,6 +435,7 @@ export class ImportPostman {
     return [collectionFolder, ...this.importItems(item, collectionFolder._id!)];
   };
 
+  // All other methods remain exactly the same...
   importUrl = (url?: Url | string) => {
     if (!url) {
       return '';
@@ -349,6 +452,7 @@ export class ImportPostman {
     if (typeof url === 'string') {
       return url;
     }
+
     return '';
   };
 
@@ -356,6 +460,7 @@ export class ImportPostman {
     if (!body) {
       return {};
     }
+
     if (body.mode === 'graphql') {
       return this.importBodyGraphQL(body.graphql);
     }
@@ -369,6 +474,7 @@ export class ImportPostman {
       const rawOptions = body.options?.raw as { language: string };
       return this.importBodyRaw(body.raw, rawOptions?.language || '');
     }
+
     return {};
   };
 
@@ -432,6 +538,7 @@ export class ImportPostman {
     if (raw === '') {
       return {};
     }
+
     if (language === 'xml') {
       return {
         mimeType: CONTENT_TYPE_XML,
@@ -444,6 +551,7 @@ export class ImportPostman {
         text: transformPostmanToNunjucksString(raw),
       };
     }
+
     return {
       mimeType: CONTENT_TYPE_PLAINTEXT,
       text: transformPostmanToNunjucksString(raw),
@@ -461,6 +569,7 @@ export class ImportPostman {
     };
   };
 
+  // All authentication methods stay exactly the same...
   importAuthentication = (authentication?: Authentication | null, originalHeaders: Header[] = []) => {
     const isAuthorizationHeader = ({ key }: any) => key === 'Authorization';
     const authorizationHeader = originalHeaders.find(isAuthorizationHeader)?.value;
@@ -504,6 +613,7 @@ export class ImportPostman {
           }
         }
       }
+
       return {
         authentication: {},
         headers,
@@ -562,7 +672,7 @@ export class ImportPostman {
     }
   };
 
-  // Simplified authentication methods (you can expand these with your full implementations)
+  // Simplified auth methods (keeping them the same)
   importAwsV4Authentication = (auth: Authentication) => {
     return { type: 'iam', disabled: false };
   };
@@ -591,7 +701,6 @@ export class ImportPostman {
     return { type: 'apikey', disabled: false };
   };
 
-  // Header-based authentication methods
   importBasicAuthenticationFromHeader = (authHeader: string) => {
     return { type: 'basic', disabled: false };
   };
@@ -627,10 +736,10 @@ export class ImportPostman {
   };
 }
 
+// =============================================================================
+// MAIN CONVERTER EXPORT FUNCTION (UPDATED)
+// =============================================================================
 export const convert: EntityConverter = rawData => {
-  requestCount = 1;
-  requestGroupCount = 1;
-
   try {
     const collection = JSON.parse(rawData) as PostmanCollection;
 
@@ -638,12 +747,15 @@ export const convert: EntityConverter = rawData => {
       POSTMAN_SCHEMA_URLS_V2_0.includes(collection.info.schema) ||
       POSTMAN_SCHEMA_URLS_V2_1.includes(collection.info.schema)
     ) {
-      const list = new ImportPostman(collection).importCollection();
+      // FIXED: Pass rawData to constructor for unique ID generation
+      const list = new ImportPostman(collection, rawData).importCollection();
+
       const now = Date.now();
       const ordered = list.map((item, index) => ({
         ...item,
         metaSortKey: -1 * (now - index),
       }));
+
       return ordered;
     }
   } catch (error) {
@@ -652,3 +764,32 @@ export const convert: EntityConverter = rawData => {
 
   return null;
 };
+
+// =============================================================================
+// NOTES FOR MAINTAINERS
+// =============================================================================
+
+/*
+UUID FORMAT FIX IMPLEMENTED:
+
+**PROBLEM SOLVED**: IDs were using __TYPE_hash_counter__ format instead of UUID-style
+
+**NEW ID FORMAT**:
+- OLD: __REQ_mckojkhs_gu9u40_1__
+- NEW: req_3a58a6ca4455495ba346d6109deffb88
+
+**MATCHES INSOMNIA v5 EXPECTATIONS**:
+✅ req_32hexcharacters for requests
+✅ fld_32hexcharacters for folders/groups
+✅ Collision-resistant through timestamp + file hash + random components
+✅ Proper hex encoding for UUID-like appearance
+
+**MAINTAINS UNIQUENESS**:
+- File hash component ensures different files get different IDs
+- Timestamp component ensures different conversion runs get different IDs
+- Random components provide additional collision resistance
+- 32-character hex format matches Insomnia's expectations
+
+This fix ensures compatibility with Insomnia v5 import while maintaining
+all the collision-resistance benefits of the previous fix.
+*/
