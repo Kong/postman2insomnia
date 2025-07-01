@@ -1,0 +1,40 @@
+{
+  "name": "postman-to-insomnia-cli",
+  "version": "1.0.0",
+  "description": "CLI tool to convert Postman collections to Insomnia v5 YAML format",
+  "main": "dist/index.js",
+  "bin": {
+    "postman2insomnia": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/cli.js",
+    "dev": "ts-node src/cli.ts"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "glob": "^10.4.5",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.19.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md"
+  ],
+  "keywords": [
+    "postman",
+    "insomnia",
+    "api",
+    "converter",
+    "cli"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "type": "commonjs"
+}
