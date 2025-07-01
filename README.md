@@ -2,20 +2,20 @@
 
 A command-line tool that converts Postman collections and environments to Insomnia v5 YAML format. This tool was built by extracting and adapting the core conversion logic from Insomnia's UI codebase to create a standalone CLI utility.
 
-## 🚀 Features
+## Features
 
-- ✅ **Converts Postman Collections** (v2.0 and v2.1) to Insomnia v5 YAML format
-- ✅ **Converts Postman Environments** (including globals) to Insomnia v5 YAML format
-- ✅ **Batch processing** of multiple files
-- ✅ **Merge multiple collections** into a single output
-- ✅ **Preserves folder structure** and request organization
-- ✅ **Handles authentication** methods (Basic, Bearer, OAuth, API Key, etc.)
-- ✅ **Processes scripts** (pre-request and post-response)
-- ✅ **Maintains variables** and environment data
-- ✅ **Filters disabled variables** from environments
-- ✅ **Auto-detects file types** (collection vs environment)
+- **Converts Postman Collections** (v2.0 and v2.1) to Insomnia v5 YAML format
+- **Converts Postman Environments** (including globals) to Insomnia v5 YAML format
+- **Batch processing** of multiple files
+- **Merge multiple collections** into a single output
+- **Preserves folder structure** and request organization
+- **Handles authentication** methods (Basic, Bearer, OAuth, API Key, etc.)
+- **Processes scripts** (pre-request and post-response)
+- **Maintains variables** and environment data
+- **Filters disabled variables** from environments
+- **Auto-detects file types** (collection vs environment)
 
-## 📦 Installation
+## Installation
 
 ### Global Installation (Recommended)
 
@@ -101,7 +101,7 @@ postman2insomnia *.json -o ./output -v
 | `--help` | `-h` | Show help | |
 | `--version` | `-V` | Show version | |
 
-## 📁 File Types Supported
+## File Types Supported
 
 ### Postman Collections
 - **Format**: Postman Collection v2.0 and v2.1
@@ -114,7 +114,7 @@ postman2insomnia *.json -o ./output -v
 - **Contains**: Environment variables, global variables
 - **Note**: Disabled variables are automatically filtered out
 
-## 📋 Examples
+## Examples
 
 ### Convert a Collection
 
@@ -223,14 +223,14 @@ Generated files follow the exact **Insomnia v5 specification**:
 - Proper meta objects with timestamps and IDs
 - Valid Zod schema compliance for import validation
 
-## 🚧 Known Limitations
+## Known Limitations
 
 1. **Simplified Authentication**: Some complex authentication flows are simplified but functional
 2. **Script Compatibility**: Pre-request and post-response scripts are converted from `pm.*` to `insomnia.*` syntax
 3. **v5 Format Only**: Outputs Insomnia v5 format (not v4 or older)
 4. **Node.js Required**: Requires Node.js runtime (not a standalone binary)
 
-## 🤝 Contributing
+## Contributing
 
 This tool was built by adapting Insomnia's existing codebase. When contributing:
 
@@ -239,7 +239,7 @@ This tool was built by adapting Insomnia's existing codebase. When contributing:
 3. **Test with real Postman exports** to ensure compatibility
 4. **Update schema compliance** if Insomnia v5 format changes
 
-## 📄 License
+## License
 
 This project adapts open-source code from the Insomnia project. Please refer to the original Insomnia license terms.
 
