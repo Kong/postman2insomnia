@@ -5,6 +5,24 @@ All notable changes to the Postman to Insomnia CLI converter will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-07-01
+
+### Fixed
+- **CRITICAL: ID collision prevention** - Fixed guaranteed ID collisions when converting multiple collections in batch mode
+- **UUID format compatibility** - Updated ID generation to match Insomnia v5 native UUID format (e.g., `req_3a58a6ca4455495ba346d6109deffb88`)
+- **Batch processing reliability** - Eliminated duplicate IDs across different collection files
+
+### Changed
+- **ID Generation Strategy** - Replaced `__REQ_counter__` format with proper UUID-style `req_32hexcharacters` format
+- **Collision Resistance** - Enhanced ID uniqueness using file content hash + timestamp + random components
+- **Insomnia Import Compatibility** - Generated files now import seamlessly into Insomnia without ID conflicts
+
+### Technical Details
+- Removed counter resets that caused guaranteed collisions in batch mode
+- Implemented per-file UUID generation with collision-resistant algorithms
+- Maintained backward compatibility for all existing functionality
+- Added support for crypto.randomUUID() when available for enhanced security
+
 ## [1.0.0] - 2025-07-01
 
 ### Added
