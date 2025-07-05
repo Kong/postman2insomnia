@@ -1,0 +1,404 @@
+{
+  "_comment": "Comprehensive Transforms Configuration",
+  "_description": "Extensive transformation rules for complex enterprise collections, legacy exports, and edge cases. Includes all known compatibility fixes.",
+  "_usage": "postman2insomnia collection.json --preprocess --postprocess --config-file ./configs/comprehensive-transforms.json",
+  "_performance": "This config has many rules and may slow conversion. Use minimal-transforms.json for faster processing.",
+
+  "preprocess": [
+    {
+      "name": "fix-responseHeaders",
+      "description": "Fix deprecated pm.responseHeaders[] array access syntax",
+      "pattern": "pm\\.responseHeaders\\[(.*?)\\]",
+      "replacement": "pm.response.headers.get($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-responseCode",
+      "description": "Fix deprecated responseCode.code syntax",
+      "pattern": "responseCode\\.code",
+      "replacement": "pm.response.code",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-responseTime",
+      "description": "Fix deprecated responseTime variable",
+      "pattern": "\\bresponseTime\\b",
+      "replacement": "pm.response.responseTime",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-responseBody",
+      "description": "Fix deprecated responseBody variable",
+      "pattern": "\\bresponseBody\\b",
+      "replacement": "pm.response.text()",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-responseJson",
+      "description": "Fix deprecated responseJson variable",
+      "pattern": "\\bresponseJson\\b",
+      "replacement": "pm.response.json()",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-setEnvironmentVariable",
+      "description": "Fix deprecated postman.setEnvironmentVariable() calls",
+      "pattern": "postman\\.setEnvironmentVariable\\((.*?)\\)",
+      "replacement": "pm.environment.set($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-setGlobalVariable",
+      "description": "Fix deprecated postman.setGlobalVariable() calls",
+      "pattern": "postman\\.setGlobalVariable\\((.*?)\\)",
+      "replacement": "pm.globals.set($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-getEnvironmentVariable",
+      "description": "Fix deprecated postman.getEnvironmentVariable() calls",
+      "pattern": "postman\\.getEnvironmentVariable\\((.*?)\\)",
+      "replacement": "pm.environment.get($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-getGlobalVariable",
+      "description": "Fix deprecated postman.getGlobalVariable() calls",
+      "pattern": "postman\\.getGlobalVariable\\((.*?)\\)",
+      "replacement": "pm.globals.get($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-clearEnvironmentVariable",
+      "description": "Fix deprecated postman.clearEnvironmentVariable() calls",
+      "pattern": "postman\\.clearEnvironmentVariable\\((.*?)\\)",
+      "replacement": "pm.environment.unset($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-clearGlobalVariable",
+      "description": "Fix deprecated postman.clearGlobalVariable() calls",
+      "pattern": "postman\\.clearGlobalVariable\\((.*?)\\)",
+      "replacement": "pm.globals.unset($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-tests-syntax",
+      "description": "Fix legacy tests[] array syntax to modern pm.test()",
+      "pattern": "tests\\[(.*?)\\]\\s*=\\s*(.*?);",
+      "replacement": "pm.test($1, function() { pm.expect($2).to.be.true; });",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-request-data",
+      "description": "Fix deprecated request.data syntax",
+      "pattern": "request\\.data\\[(.*?)\\]",
+      "replacement": "pm.request.body.formdata.get($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-iteration-variable",
+      "description": "Fix deprecated iteration variable access",
+      "pattern": "iteration",
+      "replacement": "pm.info.iteration",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-environment-name",
+      "description": "Fix deprecated environment variable access",
+      "pattern": "environment\\[(.*?)\\]",
+      "replacement": "pm.environment.get($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-globals-access",
+      "description": "Fix deprecated globals variable access",
+      "pattern": "globals\\[(.*?)\\]",
+      "replacement": "pm.globals.get($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-data-access",
+      "description": "Fix deprecated data variable access",
+      "pattern": "data\\[(.*?)\\]",
+      "replacement": "pm.iterationData.get($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-tv4-validate",
+      "description": "Fix deprecated tv4.validate() calls",
+      "pattern": "tv4\\.validate\\(([^,]+),\\s*([^)]+)\\)",
+      "replacement": "pm.expect(tv4.validate($1, $2)).to.be.true",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-xml2Json",
+      "description": "Fix deprecated xml2Json() calls",
+      "pattern": "xml2Json\\(([^)]+)\\)",
+      "replacement": "pm.response.xml2Json($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-btoa-atob",
+      "description": "Fix deprecated btoa/atob usage in scripts",
+      "pattern": "\\b(btoa|atob)\\(",
+      "replacement": "pm.util.$1(",
+      "flags": "g",
+      "enabled": true
+    }
+  ],
+
+  "postprocess": [
+    {
+      "name": "fix-header-includes",
+      "description": "Fix header.includes() method calls to use .value property",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\.includes\\(",
+      "replacement": "insomnia.response.headers.get($1).value.includes(",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-conditional-includes",
+      "description": "Fix header access in conditional statements with includes",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\s*&&\\s*insomnia\\.response\\.headers\\.get\\(\\1\\)\\.includes\\(",
+      "replacement": "insomnia.response.headers.get($1) && insomnia.response.headers.get($1).value.includes(",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-conditional-methods",
+      "description": "Fix header access in conditional statements with string methods",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\s*&&\\s*insomnia\\.response\\.headers\\.get\\(\\1\\)\\.(?!value\\b)(\\w+)\\(",
+      "replacement": "insomnia.response.headers.get($1) && insomnia.response.headers.get($1).value.$2(",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-conditional-comparisons",
+      "description": "Fix header access in conditional statements with comparisons",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\s*&&\\s*insomnia\\.response\\.headers\\.get\\(\\1\\)\\s*(===|!==|==|!=)\\s*",
+      "replacement": "insomnia.response.headers.get($1) && insomnia.response.headers.get($1).value $2 ",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-string-comparisons",
+      "description": "Fix header string comparisons to use .value property",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\s*(===|!==|==|!=)\\s*",
+      "replacement": "insomnia.response.headers.get($1).value $2 ",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-string-methods",
+      "description": "Fix all common string methods on headers",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\.(toLowerCase|toUpperCase|trim|split|substring|substr|slice|replace|match|search|indexOf|lastIndexOf)\\(",
+      "replacement": "insomnia.response.headers.get($1).value.$2(",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-startsWith",
+      "description": "Fix header.startsWith() method calls",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\.startsWith\\(",
+      "replacement": "insomnia.response.headers.get($1).value.startsWith(",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-endsWith",
+      "description": "Fix header.endsWith() method calls",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\.endsWith\\(",
+      "replacement": "insomnia.response.headers.get($1).value.endsWith(",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-charAt",
+      "description": "Fix header.charAt() method calls",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\.charAt\\(",
+      "replacement": "insomnia.response.headers.get($1).value.charAt(",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-charCodeAt",
+      "description": "Fix header.charCodeAt() method calls",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\.charCodeAt\\(",
+      "replacement": "insomnia.response.headers.get($1).value.charCodeAt(",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-length-property",
+      "description": "Fix header.length property access",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\.length",
+      "replacement": "insomnia.response.headers.get($1).value.length",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-in-template-literals",
+      "description": "Fix header access within template literals",
+      "pattern": "\\$\\{insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\}",
+      "replacement": "${insomnia.response.headers.get($1).value}",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-concatenation",
+      "description": "Fix header concatenation with strings",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\s*\\+\\s*",
+      "replacement": "insomnia.response.headers.get($1).value + ",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-in-console-log",
+      "description": "Fix header access in console.log statements",
+      "pattern": "console\\.log\\(([^)]*?)insomnia\\.response\\.headers\\.get\\(([^)]+)\\)([^)]*)\\)",
+      "replacement": "console.log($1insomnia.response.headers.get($2).value$3)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-regex-test",
+      "description": "Fix regex.test() calls on headers",
+      "pattern": "\\/([^/]+)\\/([gimuy]*)\\.test\\(insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\)",
+      "replacement": "/$1/$2.test(insomnia.response.headers.get($3).value)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-array-destructuring",
+      "description": "Fix array destructuring with headers",
+      "pattern": "\\[([^\\]]*?)insomnia\\.response\\.headers\\.get\\(([^)]+)\\)([^\\]]*)\\]",
+      "replacement": "[$1insomnia.response.headers.get($2).value$3]",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-object-property",
+      "description": "Fix header access as object property",
+      "pattern": "\\{([^}]*?)([a-zA-Z_$][a-zA-Z0-9_$]*)\\s*:\\s*insomnia\\.response\\.headers\\.get\\(([^)]+)\\)([^}]*)\\}",
+      "replacement": "{$1$2: insomnia.response.headers.get($3).value$4}",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-ternary-operator",
+      "description": "Fix header access in ternary operators",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\s*\\?",
+      "replacement": "insomnia.response.headers.get($1).value ?",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-typeof-checks",
+      "description": "Fix typeof checks on headers",
+      "pattern": "typeof\\s+insomnia\\.response\\.headers\\.get\\(([^)]+)\\)",
+      "replacement": "typeof insomnia.response.headers.get($1).value",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-json-parse",
+      "description": "Fix JSON.parse() calls on headers",
+      "pattern": "JSON\\.parse\\(insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\)",
+      "replacement": "JSON.parse(insomnia.response.headers.get($1).value)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-parseint",
+      "description": "Fix parseInt() calls on headers",
+      "pattern": "parseInt\\(insomnia\\.response\\.headers\\.get\\(([^)]+)\\)([^)]*)\\)",
+      "replacement": "parseInt(insomnia.response.headers.get($1).value$2)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-parsefloat",
+      "description": "Fix parseFloat() calls on headers",
+      "pattern": "parseFloat\\(insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\)",
+      "replacement": "parseFloat(insomnia.response.headers.get($1).value)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-number-constructor",
+      "description": "Fix Number() constructor calls on headers",
+      "pattern": "Number\\(insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\)",
+      "replacement": "Number(insomnia.response.headers.get($1).value)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-string-constructor",
+      "description": "Fix String() constructor calls on headers",
+      "pattern": "String\\(insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\)",
+      "replacement": "String(insomnia.response.headers.get($1).value)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-in-switch-case",
+      "description": "Fix header access in switch statements",
+      "pattern": "switch\\s*\\(\\s*insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\s*\\)",
+      "replacement": "switch (insomnia.response.headers.get($1).value)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-in-return-statement",
+      "description": "Fix header access in return statements",
+      "pattern": "return\\s+insomnia\\.response\\.headers\\.get\\(([^)]+)\\)([^;\\n}]*)",
+      "replacement": "return insomnia.response.headers.get($1).value$2",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-response-json-access",
+      "description": "Ensure response.json() returns proper object (if needed)",
+      "pattern": "insomnia\\.response\\.json\\(\\)",
+      "replacement": "insomnia.response.json()",
+      "flags": "g",
+      "enabled": false
+    },
+    {
+      "name": "fix-response-text-access",
+      "description": "Ensure response.text() returns proper string (if needed)",
+      "pattern": "insomnia\\.response\\.text\\(\\)",
+      "replacement": "insomnia.response.text()",
+      "flags": "g",
+      "enabled": false
+    },
+    {
+      "name": "fix-request-headers-add",
+      "description": "Convert insomnia.request.headers.add() to insomnia.request.addHeader()",
+      "pattern": "insomnia\\.request\\.headers\\.add\\(\\s*\\{([^}]+)\\}\\s*\\);?",
+      "replacement": "insomnia.request.addHeader({$1});",
+      "flags": "g",
+      "enabled": true
+    }
+  ]
+}

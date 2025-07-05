@@ -1,0 +1,107 @@
+{
+  "_comment": "Minimal Transforms Configuration",
+  "_description": "Essential compatibility fixes for most Postman to Insomnia conversions. Includes only critical transforms that solve the most common issues.",
+  "_usage": "postman2insomnia collection.json --preprocess --postprocess --config-file ./configs/minimal-transforms.json",
+
+  "preprocess": [
+    {
+      "name": "fix-responseHeaders",
+      "description": "Fix deprecated pm.responseHeaders[] array access syntax",
+      "pattern": "pm\\.responseHeaders\\[(.*?)\\]",
+      "replacement": "pm.response.headers.get($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-setEnvironmentVariable",
+      "description": "Fix deprecated postman.setEnvironmentVariable() calls",
+      "pattern": "postman\\.setEnvironmentVariable\\((.*?)\\)",
+      "replacement": "pm.environment.set($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-setGlobalVariable",
+      "description": "Fix deprecated postman.setGlobalVariable() calls",
+      "pattern": "postman\\.setGlobalVariable\\((.*?)\\)",
+      "replacement": "pm.globals.set($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-getEnvironmentVariable",
+      "description": "Fix deprecated postman.getEnvironmentVariable() calls",
+      "pattern": "postman\\.getEnvironmentVariable\\((.*?)\\)",
+      "replacement": "pm.environment.get($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-getGlobalVariable",
+      "description": "Fix deprecated postman.getGlobalVariable() calls",
+      "pattern": "postman\\.getGlobalVariable\\((.*?)\\)",
+      "replacement": "pm.globals.get($1)",
+      "flags": "g",
+      "enabled": true
+    }
+  ],
+
+  "postprocess": [
+    {
+      "name": "fix-header-includes",
+      "description": "Fix header.includes() method calls to use .value property",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\.includes\\(",
+      "replacement": "insomnia.response.headers.get($1).value.includes(",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-string-comparisons",
+      "description": "Fix header string comparisons to use .value property",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\s*(===|!==|==|!=)\\s*",
+      "replacement": "insomnia.response.headers.get($1).value $2 ",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-toLowerCase",
+      "description": "Fix header.toLowerCase() method calls",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\.toLowerCase\\(",
+      "replacement": "insomnia.response.headers.get($1).value.toLowerCase(",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-toUpperCase",
+      "description": "Fix header.toUpperCase() method calls",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\.toUpperCase\\(",
+      "replacement": "insomnia.response.headers.get($1).value.toUpperCase(",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-startsWith",
+      "description": "Fix header.startsWith() method calls",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\.startsWith\\(",
+      "replacement": "insomnia.response.headers.get($1).value.startsWith(",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-endsWith",
+      "description": "Fix header.endsWith() method calls",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\.endsWith\\(",
+      "replacement": "insomnia.response.headers.get($1).value.endsWith(",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-request-headers-add",
+      "description": "Convert insomnia.request.headers.add() to insomnia.request.addHeader()",
+      "pattern": "insomnia\\.request\\.headers\\.add\\(\\s*\\{([\\s\\S]*?)\\}\\s*\\);?",
+      "replacement": "insomnia.request.addHeader({$1});",
+      "flags": "g",
+      "enabled": true
+    }
+  ]
+}

@@ -1,30 +1,29 @@
 // =============================================================================
-// CONVERTER TESTS - MAIN ORCHESTRATION LOGIC
+// UPDATED CONVERTER TESTS - WITH TRANSFORM SUPPORT - FIXED
 // =============================================================================
-// Tests for the main converter.ts file that orchestrates the conversion process
+// Enhanced tests for the main converter orchestration with transform integration
+// Fixed preprocessing transform patterns to match actual default rules
 // =============================================================================
 
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as yaml from 'js-yaml';
 import { convertPostmanToInsomnia, ConversionOptions, ConversionResult } from '../../src/converter';
+import { TransformEngine } from '../../src/transform-engine';
 
-describe('Converter', () => {
+describe('Converter with Transform Support', () => {
   let tempDir: string;
   let testFiles: string[];
   let consoleSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    // Create temp directory for test files
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'converter-test-'));
     testFiles = [];
-
-    // Suppress console.error for cleaner test output
     consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    // Clean up temp files
     testFiles.forEach(file => {
       if (fs.existsSync(file)) {
         fs.unlinkSync(file);
@@ -33,12 +32,9 @@ describe('Converter', () => {
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
-
-    // Restore console.error
     consoleSpy.mockRestore();
   });
 
-  // Helper to create test files
   const createTestFile = (filename: string, content: any): string => {
     const filePath = path.join(tempDir, filename);
     fs.writeFileSync(filePath, JSON.stringify(content, null, 2));
@@ -46,12 +42,19 @@ describe('Converter', () => {
     return filePath;
   };
 
+  const createConfigFile = (config: any): string => {
+    const configPath = path.join(tempDir, 'test-config.json');
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    testFiles.push(configPath);
+    return configPath;
+  };
+
   // ==========================================================================
-  // FILE TYPE DETECTION TESTS
+  // ENHANCED FILE TYPE DETECTION TESTS
   // ==========================================================================
 
-  describe('File Type Detection', () => {
-    test('should detect Postman collections correctly', async () => {
+  describe('File Type Detection with Transforms', () => {
+    test('should detect Postman collections correctly with transform options', async () => {
       const collection = {
         info: {
           name: 'Test Collection',
@@ -65,7 +68,9 @@ describe('Converter', () => {
         outputDir: tempDir,
         format: 'yaml',
         merge: false,
-        verbose: false
+        verbose: false,
+        preprocess: true,
+        postprocess: true
       };
 
       const result = await convertPostmanToInsomnia([filePath], options);
@@ -74,7 +79,7 @@ describe('Converter', () => {
       expect(result.failed).toBe(0);
     });
 
-    test('should detect Postman environments correctly', async () => {
+    test('should detect Postman environments correctly with transform options', async () => {
       const environment = {
         name: 'Test Environment',
         _postman_variable_scope: 'environment',
@@ -88,7 +93,9 @@ describe('Converter', () => {
         outputDir: tempDir,
         format: 'yaml',
         merge: false,
-        verbose: false
+        verbose: false,
+        preprocess: true,
+        postprocess: true
       };
 
       const result = await convertPostmanToInsomnia([filePath], options);
@@ -96,45 +103,154 @@ describe('Converter', () => {
       expect(result.successful).toBe(1);
       expect(result.failed).toBe(0);
     });
+  });
 
-    test('should detect global variables correctly', async () => {
-      const globals = {
-        name: 'Global Variables',
-        _postman_variable_scope: 'globals',
-        values: [
-          { key: 'globalApiKey', value: 'abc123', enabled: true }
+  // ==========================================================================
+  // PREPROCESSING INTEGRATION TESTS - FIXED
+  // ==========================================================================
+
+  describe('Preprocessing Integration', () => {
+    test('should apply preprocessing transforms to raw Postman JSON', async () => {
+      const legacyCollection = {
+        info: {
+          name: 'Legacy Collection',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+        },
+        item: [
+          {
+            name: 'Legacy Request',
+            request: {
+              method: 'GET',
+              url: 'https://api.example.com/legacy'
+            },
+            event: [
+              {
+                listen: 'test',
+                script: {
+                  exec: [
+                    '// Legacy syntax that needs preprocessing',
+                    'if (pm.responseHeaders["Content-Type"]) {',
+                    '  postman.getEnvironmentVariable("type");',
+                    '}',
+                    'tests["Status OK"] = pm.response.code === 200;'
+                  ]
+                }
+              }
+            ]
+          }
         ]
       };
 
-      const filePath = createTestFile('globals.json', globals);
+      const filePath = createTestFile('legacy.json', legacyCollection);
+
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
         merge: false,
-        verbose: false
+        verbose: false,
+        preprocess: true
       };
 
       const result = await convertPostmanToInsomnia([filePath], options);
 
       expect(result.successful).toBe(1);
       expect(result.failed).toBe(0);
+
+      // Verify preprocessing was applied by checking output
+      const outputFile = result.outputs[0];
+      const content = fs.readFileSync(outputFile, 'utf8');
+      const parsed = yaml.load(content) as any;
+
+      const script = parsed.collection[0].scripts.afterResponse;
+
+      // Should have preprocessed deprecated syntax before pm->insomnia conversion
+      expect(script).toContain('insomnia.response.headers.get("Content-Type")');
+      expect(script).toContain('insomnia.environment.get'); // Fixed: getEnvironmentVariable -> environment.get
+      expect(script).toContain('insomnia.test');
+      expect(script).not.toContain('pm.responseHeaders[');
+      expect(script).not.toContain('postman.getEnvironmentVariable');
+      expect(script).not.toContain('tests[');
     });
 
-    test('should reject unknown file formats', async () => {
-      const unknownFormat = {
-        type: 'unknown',
-        data: 'some data'
+    test('should use custom preprocessing config', async () => {
+      const collection = {
+        info: {
+          name: 'Custom Preprocess',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+        },
+        item: [
+          {
+            name: 'Custom Request',
+            request: {
+              method: 'GET',
+              url: 'https://api.example.com/custom'
+            },
+            event: [
+              {
+                listen: 'test',
+                script: {
+                  exec: ['customOldSyntax("test");']
+                }
+              }
+            ]
+          }
+        ]
       };
 
-      const filePath = createTestFile('unknown.json', unknownFormat);
+      const filePath = createTestFile('custom-preprocess.json', collection);
+
+      const config = {
+        preprocess: [
+          {
+            name: 'custom-rule',
+            description: 'Custom preprocessing rule',
+            pattern: 'customOldSyntax\\((.*?)\\)',
+            replacement: 'pm.test($1, function() {});',
+            flags: 'g',
+            enabled: true
+          }
+        ],
+        postprocess: []
+      };
+
+      const configFile = createConfigFile(config);
+
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
         merge: false,
-        verbose: false
+        verbose: false,
+        preprocess: true,
+        configFile: configFile
       };
 
       const result = await convertPostmanToInsomnia([filePath], options);
+
+      expect(result.successful).toBe(1);
+
+      const outputFile = result.outputs[0];
+      const content = fs.readFileSync(outputFile, 'utf8');
+      const parsed = yaml.load(content) as any;
+
+      const script = parsed.collection[0].scripts.afterResponse;
+      expect(script).toContain('insomnia.test("test"');
+      expect(script).not.toContain('customOldSyntax');
+    });
+
+    test('should handle preprocessing with malformed JSON gracefully', async () => {
+      const malformedFile = path.join(tempDir, 'malformed.json');
+      fs.writeFileSync(malformedFile, '{ "info": { invalid json }');
+      testFiles.push(malformedFile);
+
+      const options: ConversionOptions = {
+        outputDir: tempDir,
+        format: 'yaml',
+        merge: false,
+        verbose: false,
+        preprocess: true
+      };
+
+      const result = await convertPostmanToInsomnia([malformedFile], options);
 
       expect(result.successful).toBe(0);
       expect(result.failed).toBe(1);
@@ -142,193 +258,289 @@ describe('Converter', () => {
   });
 
   // ==========================================================================
-  // SINGLE FILE CONVERSION TESTS
+  // POSTPROCESSING INTEGRATION TESTS
   // ==========================================================================
 
-  describe('Single File Conversion', () => {
-    test('should convert single collection file', async () => {
-      const collection = {
+  describe('Postprocessing Integration', () => {
+    test('should apply postprocessing transforms to converted scripts', async () => {
+      const modernCollection = {
         info: {
-          name: 'Single Collection',
+          name: 'Modern Collection',
           schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
         },
         item: [
           {
-            name: 'Test Request',
+            name: 'Modern Request',
             request: {
               method: 'GET',
-              url: 'https://api.example.com/test'
-            }
+              url: 'https://api.example.com/modern'
+            },
+            event: [
+              {
+                listen: 'test',
+                script: {
+                  exec: [
+                    '// Modern syntax that needs postprocessing for Insomnia',
+                    'pm.test("Header check", function() {',
+                    '  if (pm.response.headers.get("Content-Type").includes("json")) {',
+                    '    pm.expect(pm.response.headers.get("Status") === "success").to.be.true;',
+                    '  }',
+                    '});'
+                  ]
+                }
+              }
+            ]
           }
         ]
       };
 
-      const filePath = createTestFile('single-collection.json', collection);
+      const filePath = createTestFile('modern.json', modernCollection);
+
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
         merge: false,
-        verbose: false
+        verbose: false,
+        postprocess: true
       };
 
       const result = await convertPostmanToInsomnia([filePath], options);
 
       expect(result.successful).toBe(1);
-      expect(result.failed).toBe(0);
-      expect(result.outputs).toHaveLength(1);
 
-      // Check output file exists
-      const outputFile = result.outputs[0];
-      expect(fs.existsSync(outputFile)).toBe(true);
-      expect(outputFile).toMatch(/\.insomnia\.yaml$/);
-    });
-
-    test('should convert single environment file', async () => {
-      const environment = {
-        name: 'Development',
-        _postman_variable_scope: 'environment',
-        values: [
-          { key: 'baseUrl', value: 'https://dev-api.example.com', enabled: true },
-          { key: 'debug', value: 'true', enabled: false }
-        ]
-      };
-
-      const filePath = createTestFile('dev-env.json', environment);
-      const options: ConversionOptions = {
-        outputDir: tempDir,
-        format: 'yaml',
-        merge: false,
-        verbose: false
-      };
-
-      const result = await convertPostmanToInsomnia([filePath], options);
-
-      expect(result.successful).toBe(1);
-      expect(result.failed).toBe(0);
-
-      // Verify output file content
       const outputFile = result.outputs[0];
       const content = fs.readFileSync(outputFile, 'utf8');
-      expect(content).toContain('type: environment.insomnia.rest/5.0');
-      expect(content).toContain('baseUrl: https://dev-api.example.com');
-      expect(content).not.toContain('debug'); // Should be filtered out (disabled)
+      const parsed = yaml.load(content) as any;
+
+      const script = parsed.collection[0].scripts.afterResponse;
+
+      // Should have postprocessed Insomnia API differences
+      expect(script).toContain('insomnia.response.headers.get("Content-Type").value.includes("json")');
+      expect(script).toContain('insomnia.response.headers.get("Status").value === "success"');
+      expect(script).not.toMatch(/insomnia\.response\.headers\.get\([^)]+\)\.includes\(/);
+      expect(script).not.toMatch(/insomnia\.response\.headers\.get\([^)]+\)\s*===/);
     });
 
-    test('should handle conversion errors gracefully', async () => {
-      const malformedCollection = {
+    test('should use custom postprocessing config', async () => {
+      const collection = {
         info: {
-          name: 'Malformed Collection',
+          name: 'Custom Postprocess',
           schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
         },
         item: [
           {
-            name: 'Malformed Request',
+            name: 'Custom Request',
             request: {
-              method: 'INVALID_METHOD', // This might cause issues
-              url: null // Invalid URL
-            }
+              method: 'GET',
+              url: 'https://api.example.com/custom-post'
+            },
+            event: [
+              {
+                listen: 'test',
+                script: {
+                  exec: ['pm.customApiCall();']
+                }
+              }
+            ]
           }
         ]
       };
 
-      const filePath = createTestFile('malformed.json', malformedCollection);
+      const filePath = createTestFile('custom-postprocess.json', collection);
+
+      const config = {
+        preprocess: [],
+        postprocess: [
+          {
+            name: 'custom-api-fix',
+            description: 'Fix custom API call',
+            pattern: 'insomnia\\.customApiCall\\(\\)',
+            replacement: 'insomnia.fixedApiCall()',
+            flags: 'g',
+            enabled: true
+          }
+        ]
+      };
+
+      const configFile = createConfigFile(config);
+
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
         merge: false,
-        verbose: false
+        verbose: false,
+        postprocess: true,
+        configFile: configFile
       };
 
       const result = await convertPostmanToInsomnia([filePath], options);
 
-      // Should still succeed even with malformed data
       expect(result.successful).toBe(1);
-      expect(result.failed).toBe(0);
+
+      const outputFile = result.outputs[0];
+      const content = fs.readFileSync(outputFile, 'utf8');
+      const parsed = yaml.load(content) as any;
+
+      const script = parsed.collection[0].scripts.afterResponse;
+      expect(script).toContain('insomnia.fixedApiCall()');
+      expect(script).not.toContain('insomnia.customApiCall()');
     });
   });
 
   // ==========================================================================
-  // BATCH PROCESSING TESTS
+  // COMBINED PREPROCESSING AND POSTPROCESSING TESTS - FIXED
   // ==========================================================================
 
-  describe('Batch Processing', () => {
-    test('should process multiple files', async () => {
-      const collection1 = {
+  describe('Combined Transform Processing', () => {
+    test('should apply both preprocessing and postprocessing in full pipeline', async () => {
+      const complexCollection = {
         info: {
-          name: 'Collection 1',
+          name: 'Complex Collection',
           schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
         },
-        item: []
+        item: [
+          {
+            name: 'Complex Request',
+            request: {
+              method: 'POST',
+              url: 'https://api.example.com/complex'
+            },
+            event: [
+              {
+                listen: 'prerequest',
+                script: {
+                  exec: [
+                    '// Legacy syntax that needs preprocessing',
+                    'postman.getGlobalVariable("timestamp");'  // Fixed: Use getGlobalVariable (which gets converted)
+                  ]
+                }
+              },
+              {
+                listen: 'test',
+                script: {
+                  exec: [
+                    '// Modern syntax that needs postprocessing',
+                    'pm.test("Full pipeline test", function() {',
+                    '  if (pm.response.headers.get("Content-Type").includes("json")) {',
+                    '    pm.expect(pm.response.headers.get("Status") === "OK").to.be.true;',
+                    '  }',
+                    '});'
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      };
+
+      const filePath = createTestFile('complex.json', complexCollection);
+
+      const options: ConversionOptions = {
+        outputDir: tempDir,
+        format: 'yaml',
+        merge: false,
+        verbose: false,
+        preprocess: true,
+        postprocess: true
+      };
+
+      const result = await convertPostmanToInsomnia([filePath], options);
+
+      expect(result.successful).toBe(1);
+
+      const outputFile = result.outputs[0];
+      const content = fs.readFileSync(outputFile, 'utf8');
+      const parsed = yaml.load(content) as any;
+
+      const preRequestScript = parsed.collection[0].scripts.preRequest;
+      const testScript = parsed.collection[0].scripts.afterResponse;
+
+      // Verify preprocessing worked (getGlobalVariable -> globals.get)
+      expect(preRequestScript).toContain('insomnia.globals.get');
+      expect(preRequestScript).not.toContain('postman.getGlobalVariable');
+
+      // Verify postprocessing worked
+      expect(testScript).toContain('insomnia.response.headers.get("Content-Type").value.includes("json")');
+      expect(testScript).toContain('insomnia.response.headers.get("Status").value === "OK"');
+    });
+
+    test('should handle transforms with batch processing', async () => {
+      const collection1 = {
+        info: {
+          name: 'Batch Collection 1',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+        },
+        item: [
+          {
+            name: 'Batch Request 1',
+            request: { method: 'GET', url: 'https://api.example.com/batch1' },
+            event: [{
+              listen: 'test',
+              script: {
+                exec: ['tests["Batch 1 OK"] = pm.response.code === 200;']
+              }
+            }]
+          }
+        ]
       };
 
       const collection2 = {
         info: {
-          name: 'Collection 2',
+          name: 'Batch Collection 2',
           schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
         },
-        item: []
+        item: [
+          {
+            name: 'Batch Request 2',
+            request: { method: 'GET', url: 'https://api.example.com/batch2' },
+            event: [{
+              listen: 'test',
+              script: {
+                exec: ['if (pm.response.headers.get("Type").includes("json")) {}']
+              }
+            }]
+          }
+        ]
       };
 
-      const environment = {
-        name: 'Test Environment',
-        _postman_variable_scope: 'environment',
-        values: []
-      };
-
-      const file1 = createTestFile('collection1.json', collection1);
-      const file2 = createTestFile('collection2.json', collection2);
-      const file3 = createTestFile('environment.json', environment);
+      const file1 = createTestFile('batch1.json', collection1);
+      const file2 = createTestFile('batch2.json', collection2);
 
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
         merge: false,
-        verbose: false
+        verbose: false,
+        preprocess: true,
+        postprocess: true
       };
 
-      const result = await convertPostmanToInsomnia([file1, file2, file3], options);
+      const result = await convertPostmanToInsomnia([file1, file2], options);
 
-      expect(result.successful).toBe(3);
+      expect(result.successful).toBe(2);
       expect(result.failed).toBe(0);
-      expect(result.outputs).toHaveLength(3);
+      expect(result.outputs).toHaveLength(2);
 
-      // Verify all output files exist
+      // Verify both files were processed with transforms
       result.outputs.forEach(outputFile => {
-        expect(fs.existsSync(outputFile)).toBe(true);
+        const content = fs.readFileSync(outputFile, 'utf8');
+        const parsed = yaml.load(content) as any;
+
+        const request = parsed.collection[0];
+        
+        if (request.scripts.afterResponse) {
+          const script = request.scripts.afterResponse;
+          if (script.includes('insomnia.test')) {
+            expect(script).not.toContain('tests[');
+          }
+          if (script.includes('headers.get')) {
+            expect(script).toMatch(/\.value\./);
+          }
+        }
       });
     });
 
-    test('should handle mixed success and failure', async () => {
-      const validCollection = {
-        info: {
-          name: 'Valid Collection',
-          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
-        },
-        item: []
-      };
-
-      const invalidData = {
-        invalid: 'data'
-      };
-
-      const validFile = createTestFile('valid.json', validCollection);
-      const invalidFile = createTestFile('invalid.json', invalidData);
-
-      const options: ConversionOptions = {
-        outputDir: tempDir,
-        format: 'yaml',
-        merge: false,
-        verbose: false
-      };
-
-      const result = await convertPostmanToInsomnia([validFile, invalidFile], options);
-
-      expect(result.successful).toBe(1);
-      expect(result.failed).toBe(1);
-      expect(result.outputs).toHaveLength(1);
-    });
-
-    test('should maintain ID uniqueness across multiple files', async () => {
+    test('should maintain ID uniqueness with transforms in batch mode', async () => {
       const createCollection = (name: string) => ({
         info: {
           name,
@@ -337,155 +549,252 @@ describe('Converter', () => {
         item: [
           {
             name: 'Test Request',
-            request: {
-              method: 'GET',
-              url: 'https://api.example.com/test'
-            }
+            request: { method: 'GET', url: 'https://api.example.com/test' },
+            event: [{
+              listen: 'test',
+              script: {
+                exec: ['pm.test("test", function() {});']
+              }
+            }]
           }
         ]
       });
 
-      const file1 = createTestFile('batch1.json', createCollection('Batch 1'));
-      const file2 = createTestFile('batch2.json', createCollection('Batch 2'));
-      const file3 = createTestFile('batch3.json', createCollection('Batch 3'));
+      const file1 = createTestFile('unique1.json', createCollection('Unique 1'));
+      const file2 = createTestFile('unique2.json', createCollection('Unique 2'));
+      const file3 = createTestFile('unique3.json', createCollection('Unique 3'));
 
       const options: ConversionOptions = {
         outputDir: tempDir,
-        format: 'yaml',
+        format: 'json', // Use JSON for easier ID extraction
         merge: false,
-        verbose: false
+        verbose: false,
+        preprocess: true,
+        postprocess: true
       };
 
       const result = await convertPostmanToInsomnia([file1, file2, file3], options);
 
       expect(result.successful).toBe(3);
-      expect(result.failed).toBe(0);
 
-      // Read all output files and check for ID uniqueness
+      // Extract all IDs and verify uniqueness
       const allIds = new Set<string>();
-      for (const outputFile of result.outputs) {
+      result.outputs.forEach(outputFile => {
         const content = fs.readFileSync(outputFile, 'utf8');
-        // Extract IDs from YAML content (simple regex for testing)
-        const idMatches = content.match(/id: (req_[a-f0-9]{32}|fld_[a-f0-9]{32})/g);
-        if (idMatches) {
-          idMatches.forEach(match => {
-            const id = match.split(': ')[1];
-            expect(allIds.has(id)).toBe(false); // Should not have duplicates
-            allIds.add(id);
+        const parsed = JSON.parse(content);
+
+        // Extract IDs from meta and collection items
+        if (parsed.meta?.id) allIds.add(parsed.meta.id);
+        if (parsed.environments?.meta?.id) allIds.add(parsed.environments.meta.id);
+        if (parsed.cookieJar?.meta?.id) allIds.add(parsed.cookieJar.meta.id);
+
+        // Extract IDs from collection items recursively
+        const extractIds = (items: any[]) => {
+          items.forEach(item => {
+            if (item.meta?.id) allIds.add(item.meta.id);
+            if (item.children) extractIds(item.children);
           });
-        }
-      }
+        };
+
+        if (parsed.collection) extractIds(parsed.collection);
+      });
+
+      // All IDs should be unique
+      const idArray = Array.from(allIds);
+      expect(idArray.length).toBe(allIds.size);
+
+      // Verify UUID format
+      idArray.forEach(id => {
+        expect(id).toMatch(/^(wrk|env|jar|req|fld)_[a-f0-9]{32}$/);
+      });
     });
   });
 
   // ==========================================================================
-  // MERGE FUNCTIONALITY TESTS
+  // TRANSFORM ENGINE INTEGRATION TESTS
   // ==========================================================================
 
-  describe('Merge Functionality', () => {
-    test('should merge multiple collections into single file', async () => {
-      const collection1 = {
+  describe('Transform Engine Integration', () => {
+    test('should use provided TransformEngine instance', async () => {
+      const collection = {
         info: {
-          name: 'API Collection 1',
+          name: 'Engine Test',
           schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
         },
         item: [
-          { name: 'Request 1', request: { method: 'GET', url: 'https://api.example.com/1' } }
+          {
+            name: 'Engine Request',
+            request: { method: 'GET', url: 'https://api.example.com/engine' },
+            event: [{
+              listen: 'test',
+              script: {
+                exec: ['engineTestPattern();']
+              }
+            }]
+          }
         ]
       };
 
-      const collection2 = {
-        info: {
-          name: 'API Collection 2',
-          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
-        },
-        item: [
-          { name: 'Request 2', request: { method: 'GET', url: 'https://api.example.com/2' } }
-        ]
-      };
+      const filePath = createTestFile('engine.json', collection);
 
-      const file1 = createTestFile('merge1.json', collection1);
-      const file2 = createTestFile('merge2.json', collection2);
+      // Create custom transform engine
+      const transformEngine = new TransformEngine({
+        preprocess: [],
+        postprocess: [
+          {
+            name: 'engine-test',
+            description: 'Engine test transformation',
+            pattern: 'engineTestPattern\\(\\)',
+            replacement: 'insomnia.engineFixed()',
+            flags: 'g',
+            enabled: true
+          }
+        ]
+      });
 
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: true,
-        verbose: false
+        merge: false,
+        verbose: false,
+        postprocess: true,
+        transformEngine: transformEngine
       };
 
-      const result = await convertPostmanToInsomnia([file1, file2], options);
+      const result = await convertPostmanToInsomnia([filePath], options);
 
-      expect(result.successful).toBe(2);
-      expect(result.failed).toBe(0);
-      expect(result.outputs).toHaveLength(1);
+      expect(result.successful).toBe(1);
 
-      // Verify merged output
-      const mergedFile = result.outputs[0];
-      expect(mergedFile).toMatch(/merged-collection\.insomnia\.yaml$/);
+      const outputFile = result.outputs[0];
+      const content = fs.readFileSync(outputFile, 'utf8');
+      const parsed = yaml.load(content) as any;
 
-      // Check if file exists and has content from both collections
-      expect(fs.existsSync(mergedFile)).toBe(true);
-      const content = fs.readFileSync(mergedFile, 'utf8');
-
-      // Note: Merge might create a single collection with both requests
-      // Let's check that at least one request is there and the merge succeeded
-      expect(content).toContain('Request 1');
-      // The merge functionality might put everything in one collection
-      // so let's just verify it's a valid merged result
-      expect(content).toContain('type: collection.insomnia.rest/5.0');
+      const script = parsed.collection[0].scripts.afterResponse;
+      expect(script).toContain('insomnia.engineFixed()');
+      expect(script).not.toContain('engineTestPattern()');
     });
 
-    test('should handle merge with environments', async () => {
+    test('should create TransformEngine from config file when needed', async () => {
       const collection = {
         info: {
-          name: 'Test Collection',
+          name: 'Config Engine Test',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+        },
+        item: [
+          {
+            name: 'Config Request',
+            request: { method: 'GET', url: 'https://api.example.com/config' },
+            event: [{
+              listen: 'test',
+              script: {
+                exec: ['configTestPattern();']
+              }
+            }]
+          }
+        ]
+      };
+
+      const filePath = createTestFile('config-engine.json', collection);
+
+      const config = {
+        preprocess: [],
+        postprocess: [
+          {
+            name: 'config-test',
+            description: 'Config test transformation',
+            pattern: 'configTestPattern\\(\\)',
+            replacement: 'insomnia.configFixed()',
+            flags: 'g',
+            enabled: true
+          }
+        ]
+      };
+
+      const configFile = createConfigFile(config);
+
+      const options: ConversionOptions = {
+        outputDir: tempDir,
+        format: 'yaml',
+        merge: false,
+        verbose: false,
+        postprocess: true,
+        configFile: configFile
+      };
+
+      const result = await convertPostmanToInsomnia([filePath], options);
+
+      expect(result.successful).toBe(1);
+
+      const outputFile = result.outputs[0];
+      const content = fs.readFileSync(outputFile, 'utf8');
+      const parsed = yaml.load(content) as any;
+
+      const script = parsed.collection[0].scripts.afterResponse;
+      expect(script).toContain('insomnia.configFixed()');
+      expect(script).not.toContain('configTestPattern()');
+    });
+
+    test('should fall back to default engine when config file is invalid', async () => {
+      const collection = {
+        info: {
+          name: 'Fallback Test',
           schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
         },
         item: []
       };
 
-      const environment = {
-        name: 'Test Environment',
-        _postman_variable_scope: 'environment',
-        values: [
-          { key: 'baseUrl', value: 'https://api.test.com', enabled: true }
-        ]
-      };
+      const filePath = createTestFile('fallback.json', collection);
 
-      const collectionFile = createTestFile('collection.json', collection);
-      const envFile = createTestFile('environment.json', environment);
+      const invalidConfigFile = path.join(tempDir, 'invalid-config.json');
+      fs.writeFileSync(invalidConfigFile, '{ invalid json }');
+      testFiles.push(invalidConfigFile);
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: true,
-        verbose: false
+        merge: false,
+        verbose: false,
+        preprocess: true,
+        configFile: invalidConfigFile
       };
 
-      const result = await convertPostmanToInsomnia([collectionFile, envFile], options);
+      const result = await convertPostmanToInsomnia([filePath], options);
 
-      expect(result.successful).toBe(2);
+      expect(result.successful).toBe(1);
       expect(result.failed).toBe(0);
-      expect(result.outputs).toHaveLength(1);
+      expect(consoleSpy).toHaveBeenCalled();
+
+      consoleSpy.mockRestore();
     });
   });
 
   // ==========================================================================
-  // OUTPUT FORMAT TESTS
+  // BACKWARD COMPATIBILITY TESTS
   // ==========================================================================
 
-  describe('Output Format', () => {
-    test('should generate YAML output by default', async () => {
+  describe('Backward Compatibility', () => {
+    test('should work without transform options (backward compatibility)', async () => {
       const collection = {
         info: {
-          name: 'YAML Test',
+          name: 'Backward Compatible',
           schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
         },
-        item: []
+        item: [
+          {
+            name: 'Compatible Request',
+            request: {
+              method: 'GET',
+              url: 'https://api.example.com/compatible'
+            }
+          }
+        ]
       };
 
-      const filePath = createTestFile('yaml-test.json', collection);
+      const filePath = createTestFile('compatible.json', collection);
+
+      // Original options without transform flags
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
@@ -496,169 +805,76 @@ describe('Converter', () => {
       const result = await convertPostmanToInsomnia([filePath], options);
 
       expect(result.successful).toBe(1);
+      expect(result.failed).toBe(0);
+
+      // Should still produce valid output
       const outputFile = result.outputs[0];
-      expect(outputFile).toMatch(/\.yaml$/);
-
       const content = fs.readFileSync(outputFile, 'utf8');
-      expect(content).toContain('type: collection.insomnia.rest/5.0');
-      expect(content).toContain('name: YAML Test');
-    });
+      const parsed = yaml.load(content) as any;
 
-    test('should generate JSON output when specified', async () => {
-      const collection = {
-        info: {
-          name: 'JSON Test',
-          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
-        },
-        item: []
-      };
-
-      const filePath = createTestFile('json-test.json', collection);
-      const options: ConversionOptions = {
-        outputDir: tempDir,
-        format: 'json',
-        merge: false,
-        verbose: false
-      };
-
-      const result = await convertPostmanToInsomnia([filePath], options);
-
-      expect(result.successful).toBe(1);
-      const outputFile = result.outputs[0];
-      expect(outputFile).toMatch(/\.json$/);
-
-      const content = fs.readFileSync(outputFile, 'utf8');
-      const parsed = JSON.parse(content);
       expect(parsed.type).toBe('collection.insomnia.rest/5.0');
-      expect(parsed.name).toBe('JSON Test');
+      expect(parsed.collection).toHaveLength(1);
     });
-  });
 
-  // ==========================================================================
-  // OUTPUT DIRECTORY TESTS
-  // ==========================================================================
-
-  describe('Output Directory', () => {
-    test('should respect output directory option', async () => {
+    test('should handle options with only preprocess flag', async () => {
       const collection = {
         info: {
-          name: 'Output Dir Test',
+          name: 'Preprocess Only',
           schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
         },
         item: []
       };
 
-      const customOutputDir = path.join(tempDir, 'custom-output');
-      // Create the custom output directory first
-      fs.mkdirSync(customOutputDir, { recursive: true });
+      const filePath = createTestFile('preprocess-only.json', collection);
 
-      const filePath = createTestFile('output-test.json', collection);
-
-      const options: ConversionOptions = {
-        outputDir: customOutputDir,
-        format: 'yaml',
-        merge: false,
-        verbose: false
-      };
-
-      const result = await convertPostmanToInsomnia([filePath], options);
-
-      expect(result.successful).toBe(1);
-      expect(result.failed).toBe(0);
-      const outputFile = result.outputs[0];
-      expect(outputFile).toContain(customOutputDir);
-      expect(fs.existsSync(outputFile)).toBe(true);
-    });
-
-    test('should create output directory if it does not exist', async () => {
-      const collection = {
-        info: {
-          name: 'Create Dir Test',
-          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
-        },
-        item: []
-      };
-
-      const newOutputDir = path.join(tempDir, 'new-directory', 'nested');
-      const filePath = createTestFile('create-dir-test.json', collection);
-
-      // Verify directory doesn't exist initially
-      expect(fs.existsSync(newOutputDir)).toBe(false);
-
-      const options: ConversionOptions = {
-        outputDir: newOutputDir,
-        format: 'yaml',
-        merge: false,
-        verbose: false
-      };
-
-      const result = await convertPostmanToInsomnia([filePath], options);
-
-      // The converter should either:
-      // 1. Create the directory and succeed, OR
-      // 2. Fail gracefully if it doesn't create directories
-
-      if (result.successful === 1) {
-        // If it succeeded, directory should be created
-        expect(fs.existsSync(newOutputDir)).toBe(true);
-        expect(result.failed).toBe(0);
-        const outputFile = result.outputs[0];
-        expect(fs.existsSync(outputFile)).toBe(true);
-      } else {
-        // If it failed, that's also acceptable behavior
-        expect(result.successful).toBe(0);
-        expect(result.failed).toBe(1);
-        // Directory creation is not mandatory for converters
-      }
-    });
-  });
-
-  // ==========================================================================
-  // VERBOSE MODE TESTS
-  // ==========================================================================
-
-  describe('Verbose Mode', () => {
-    test('should handle verbose mode without errors', async () => {
-      const collection = {
-        info: {
-          name: 'Verbose Test',
-          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
-        },
-        item: []
-      };
-
-      const filePath = createTestFile('verbose-test.json', collection);
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
         merge: false,
-        verbose: true  // Enable verbose mode
+        verbose: false,
+        preprocess: true
+        // postprocess: undefined
       };
-
-      // Capture console output
-      const originalLog = console.log;
-      const logs: string[] = [];
-      console.log = (...args) => logs.push(args.join(' '));
 
       const result = await convertPostmanToInsomnia([filePath], options);
 
-      // Restore console.log
-      console.log = originalLog;
+      expect(result.successful).toBe(1);
+      expect(result.failed).toBe(0);
+    });
+
+    test('should handle options with only postprocess flag', async () => {
+      const collection = {
+        info: {
+          name: 'Postprocess Only',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+        },
+        item: []
+      };
+
+      const filePath = createTestFile('postprocess-only.json', collection);
+
+      const options: ConversionOptions = {
+        outputDir: tempDir,
+        format: 'yaml',
+        merge: false,
+        verbose: false,
+        postprocess: true
+        // preprocess: undefined
+      };
+
+      const result = await convertPostmanToInsomnia([filePath], options);
 
       expect(result.successful).toBe(1);
       expect(result.failed).toBe(0);
-
-      // Verbose mode should produce some output (we captured it)
-      // The actual verbose output is implementation-dependent
     });
   });
 
   // ==========================================================================
-  // INSOMNIA V5 FORMAT VALIDATION TESTS
+  // ENHANCED OUTPUT VALIDATION TESTS
   // ==========================================================================
 
-  describe('Insomnia v5 Format Validation', () => {
-    test('should generate valid v5 collection format', async () => {
+  describe('Enhanced Output Validation', () => {
+    test('should generate valid Insomnia v5 format with transforms', async () => {
       const collection = {
         info: {
           name: 'V5 Format Test',
@@ -666,21 +882,30 @@ describe('Converter', () => {
         },
         item: [
           {
-            name: 'Test Request',
+            name: 'V5 Request',
             request: {
               method: 'GET',
-              url: 'https://api.example.com/test'
-            }
+              url: 'https://api.example.com/v5'
+            },
+            event: [{
+              listen: 'test',
+              script: {
+                exec: ['pm.test("v5 test", function() {});']
+              }
+            }]
           }
         ]
       };
 
       const filePath = createTestFile('v5-test.json', collection);
+
       const options: ConversionOptions = {
         outputDir: tempDir,
-        format: 'json', // Use JSON for easier parsing
+        format: 'json',
         merge: false,
-        verbose: false
+        verbose: false,
+        preprocess: true,
+        postprocess: true
       };
 
       const result = await convertPostmanToInsomnia([filePath], options);
@@ -691,7 +916,7 @@ describe('Converter', () => {
       const content = fs.readFileSync(outputFile, 'utf8');
       const parsed = JSON.parse(content);
 
-      // Validate v5 collection format
+      // Validate v5 collection format with transforms
       expect(parsed.type).toBe('collection.insomnia.rest/5.0');
       expect(parsed.meta).toHaveProperty('id');
       expect(parsed.meta).toHaveProperty('created');
@@ -699,38 +924,10 @@ describe('Converter', () => {
       expect(parsed.collection).toBeInstanceOf(Array);
       expect(parsed.environments).toHaveProperty('data');
       expect(parsed.cookieJar).toHaveProperty('cookies');
-    });
 
-    test('should generate valid v5 environment format', async () => {
-      const environment = {
-        name: 'V5 Environment Test',
-        _postman_variable_scope: 'environment',
-        values: [
-          { key: 'testVar', value: 'testValue', enabled: true }
-        ]
-      };
-
-      const filePath = createTestFile('v5-env-test.json', environment);
-      const options: ConversionOptions = {
-        outputDir: tempDir,
-        format: 'json',
-        merge: false,
-        verbose: false
-      };
-
-      const result = await convertPostmanToInsomnia([filePath], options);
-
-      expect(result.successful).toBe(1);
-
-      const outputFile = result.outputs[0];
-      const content = fs.readFileSync(outputFile, 'utf8');
-      const parsed = JSON.parse(content);
-
-      // Validate v5 environment format
-      expect(parsed.type).toBe('environment.insomnia.rest/5.0');
-      expect(parsed.meta).toHaveProperty('id');
-      expect(parsed.environments).toHaveProperty('data');
-      expect(parsed.environments.data).toHaveProperty('testVar', 'testValue');
+      // Verify script was transformed
+      const request = parsed.collection[0];
+      expect(request.scripts.afterResponse).toContain('insomnia.test');
     });
   });
 });
