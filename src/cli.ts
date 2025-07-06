@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 // =============================================================================
-// POSTMAN TO INSOMNIA CLI CONVERTER
+// POSTMAN TO INSOMNIA CLI CONVERTER - WITH TRANSFORM SUPPORT
 // =============================================================================
 // This is the main CLI entry point for converting Postman collections and
-// environments to Insomnia v5 YAML format.
+// environments to Insomnia v5 YAML format, now with transform support.
 //
 // The tool was built by extracting and adapting core conversion logic from
 // Insomnia's open-source codebase to create a standalone CLI utility.
@@ -12,11 +12,12 @@
 // USAGE:
 //   postman2insomnia [options] <input-files...>
 //   postman2insomnia collection.json -o ./output -v
-//   postman2insomnia *.json --merge --verbose
+//   postman2insomnia *.json --merge --verbose --preprocess --postprocess
 // =============================================================================
 
 import { Command } from 'commander';
 import { convertPostmanToInsomnia } from './converter';
+import { generateSampleConfig } from './transform-engine';
 import chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -31,8 +32,7 @@ import { join } from 'path';
 const program = new Command();
 
 /**
- * CLI Options Interface
- * Defines all command-line options that can be passed to the tool
+ * Enhanced CLI Options Interface with Transform Support
  */
 interface CliOptions {
   /** Output directory for converted files (default: './output') */
@@ -46,6 +46,18 @@ interface CliOptions {
 
   /** Enable verbose logging for debugging and detailed output */
   verbose: boolean;
+
+  /** Enable preprocessing transforms on raw Postman JSON */
+  preprocess?: boolean;
+
+  /** Enable postprocessing transforms on converted scripts */
+  postprocess?: boolean;
+
+  /** Path to custom transform configuration file */
+  configFile?: string;
+
+  /** Generate a sample transform configuration file */
+  generateConfig?: string;
 }
 
 // =============================================================================
@@ -62,7 +74,7 @@ program
 
   // Main input argument - accepts multiple files or glob patterns
   // Examples: collection.json, *.json, postman-exports/*.json
-  .argument('<input...>', 'Postman collection files or glob patterns')
+  .argument('[input...]', 'Postman collection files or glob patterns')
 
   // CLI Options with defaults and descriptions
   .option('-o, --output <dir>', 'Output directory', './output')
@@ -70,9 +82,26 @@ program
   .option('-m, --merge', 'Merge all collections into a single file', false)
   .option('-v, --verbose', 'Verbose output', false)
 
+  // Transform options
+  .option('--preprocess', 'Apply preprocessing transforms to fix deprecated Postman syntax', false)
+  .option('--postprocess', 'Apply postprocessing transforms to fix Insomnia API differences', false)
+  .option('--config-file <path>', 'Path to custom transform configuration file')
+  .option('--generate-config <path>', 'Generate a sample transform configuration file and exit')
+
   // Main action handler - this is where the actual work happens
   .action(async (inputs: string[], options: CliOptions) => {
     try {
+      // =======================================================================
+      // CONFIG GENERATION (EXIT EARLY)
+      // =======================================================================
+
+      if (options.generateConfig) {
+        generateSampleConfig(options.generateConfig);
+        console.log(chalk.green(`✅ Sample configuration generated at: ${options.generateConfig}`));
+        console.log(chalk.blue('Edit this file to customize transformation rules.'));
+        process.exit(0);
+      }
+
       // =======================================================================
       // INITIALIZATION AND VALIDATION
       // =======================================================================
@@ -81,7 +110,7 @@ program
 
       // Expand glob patterns and validate input files
       // This handles cases like *.json, postman-exports/*.json, etc.
-      const files = await expandInputs(inputs);
+      const files = await expandInputs(inputs || []);
 
       // Early exit if no valid files found
       if (files.length === 0) {
@@ -117,7 +146,10 @@ program
         outputDir,
         format: options.format,
         merge: options.merge,
-        verbose: options.verbose
+        verbose: options.verbose,
+        preprocess: options.preprocess,
+        postprocess: options.postprocess,
+        configFile: options.configFile
       });
 
       // =======================================================================
@@ -135,6 +167,11 @@ program
       // Show where the output files were written
       console.log(chalk.blue(`📁 Output directory: ${outputDir}`));
 
+      // Show transform usage if applicable
+      if ((options.preprocess || options.postprocess) && options.verbose) {
+        console.log(chalk.blue(`🔧 Applied transforms: ${options.preprocess ? 'preprocess ' : ''}${options.postprocess ? 'postprocess' : ''}`));
+      }
+
     } catch (error) {
       // =======================================================================
       // ERROR HANDLING
@@ -142,6 +179,46 @@ program
 
       // Handle any unexpected errors during conversion
       console.error(chalk.red('❌ Error:'), error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+// =============================================================================
+// CONFIG SUBCOMMAND
+// =============================================================================
+
+const configCommand = program
+  .command('config')
+  .description('Transform configuration utilities');
+
+configCommand
+  .option('--generate <path>', 'Generate sample transform configuration')
+  .option('--validate <path>', 'Validate transform configuration file')
+  .action(async (options) => {
+    try {
+      if (options.generate) {
+        generateSampleConfig(options.generate);
+        console.log(chalk.green(`✅ Configuration generated at: ${options.generate}`));
+        console.log(chalk.blue('Edit this file to customize transformation rules.'));
+      } else if (options.validate) {
+        if (!fs.existsSync(options.validate)) {
+          console.error(chalk.red(`❌ Configuration file not found: ${options.validate}`));
+          process.exit(1);
+        }
+
+        try {
+          const configContent = fs.readFileSync(options.validate, 'utf8');
+          JSON.parse(configContent);
+          console.log(chalk.green(`✅ Configuration is valid: ${options.validate}`));
+        } catch (error) {
+          console.error(chalk.red(`❌ Invalid configuration: ${error instanceof Error ? error.message : error}`));
+          process.exit(1);
+        }
+      } else {
+        configCommand.help();
+      }
+    } catch (error) {
+      console.error(chalk.red('❌ Config command error:'), error instanceof Error ? error.message : error);
       process.exit(1);
     }
   });
@@ -213,6 +290,7 @@ ARCHITECTURE OVERVIEW:
 ├── cli.ts (this file) - Command line interface and argument parsing
 ├── converter.ts - Main conversion orchestration and Insomnia v5 format generation
 ├── postman-converter.ts - Core Postman collection parsing logic (adapted from Insomnia)
+├── transform-engine.ts - Extensible transform system for preprocessing and postprocessing
 ├── postman-env.ts - Postman environment file conversion
 └── types/ - TypeScript definitions for Postman v2.0/v2.1 and entities
 
@@ -232,20 +310,33 @@ OUTPUT FORMAT:
 - collection.insomnia.rest/5.0 for collections
 - environment.insomnia.rest/5.0 for environments
 
+TRANSFORM SYSTEM:
+- --preprocess: Fixes deprecated Postman syntax before conversion
+- --postprocess: Fixes Insomnia API differences after conversion
+- --config-file: Use custom transform rules
+- --generate-config: Create sample configuration file
+
 COMMON MAINTENANCE TASKS:
 1. Adding new CLI options: Add to CliOptions interface and program.option()
 2. Changing output formats: Modify converter.ts writeOutput functions
 3. Supporting new Postman versions: Add new type definitions in types/
 4. Error handling improvements: Check error handling in converter.ts
+5. Adding new transforms: Update transform-engine.ts and default configs
 
 DEBUGGING TIPS:
 - Use --verbose flag to see detailed processing information
 - Check converter.ts for actual conversion logic issues
 - Postman format changes usually require updates to postman-converter.ts
+- Use --generate-config to create sample transform configurations
 
 KNOWN LIMITATIONS:
 - Only supports Insomnia v5 format (not v4 or older)
 - Some complex authentication flows are simplified
 - Requires Node.js runtime (not a standalone binary)
 - YAML output only (JSON output option exists but not fully implemented)
+
+TRANSFORM SYSTEM USAGE:
+- Basic: postman2insomnia collection.json --preprocess --postprocess
+- Custom: postman2insomnia collection.json --config-file ./my-config.json
+- Generate: postman2insomnia --generate-config ./my-config.json
 */

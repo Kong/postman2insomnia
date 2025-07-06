@@ -3,70 +3,27 @@
 // =============================================================================
 // Updated to generate proper UUID-style IDs that match Insomnia v5 format
 // =============================================================================
+// =============================================================================
+// Updated converter with transform engine integration
+// =============================================================================
 
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';
+import { TransformEngine, translateHandlersInScriptWithTransforms } from './transform-engine';
 
-// =============================================================================
-// EXTRACTED CONSTANTS (REPLACING UI DEPENDENCIES)
-// =============================================================================
+// Import existing constants and utilities
 export const CONTENT_TYPE_JSON = 'application/json';
 export const CONTENT_TYPE_PLAINTEXT = 'text/plain';
 export const CONTENT_TYPE_XML = 'application/xml';
 
-// =============================================================================
-// IMPROVED UUID-STYLE ID GENERATION UTILITIES
-// =============================================================================
-
-/**
- * Generates UUID-style IDs that match Insomnia v5 format
- *
- * FORMAT: prefix_32hexcharacters
- * EXAMPLES:
- * - wrk_a84180a6bd3f478ea499794fc2e6f479
- * - env_ba857013df9840738db04cbb4359df4b
- * - jar_57c227dcaae3cd7960af1bb5455c8b23
- */
-function generateInsomniaUUID(prefix: string): string {
-  // Generate 32 hex characters
-  const timestamp = Date.now().toString(16).padStart(12, '0');
-  const random1 = Math.random().toString(16).substring(2, 10);
-  const random2 = Math.random().toString(16).substring(2, 10);
-  const random3 = Math.random().toString(16).substring(2, 6);
-
-  // Combine and ensure exactly 32 characters
-  const hex32 = (timestamp + random1 + random2 + random3).substring(0, 32);
-  return `${prefix}_${hex32.padEnd(32, '0')}`;
-}
-
-/**
- * Alternative using crypto.randomUUID if available
- */
-function generateSecureInsomniaUUID(prefix: string): string {
-  // Check if crypto.randomUUID is available (Node.js 14.17+)
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    const uuid = crypto.randomUUID().replace(/-/g, '');
-    return `${prefix}_${uuid}`;
-  }
-
-  // Fallback to our hex generation
-  return generateInsomniaUUID(prefix);
-}
-
-// =============================================================================
-// FAKER FUNCTIONS (REPLACING UI DEPENDENCY)
-// =============================================================================
 export const fakerFunctions = {
   guid: () => '{% faker "guid" %}',
   timestamp: () => '{% faker "timestamp" %}',
   randomInt: () => '{% faker "randomInt" %}',
 };
 
-// =============================================================================
-// UTILITY FUNCTIONS
-// =============================================================================
 export function forceBracketNotation(prefix: string, path: string): string {
   if (path.includes('-')) {
     return `${prefix}['${path}']`;
@@ -74,11 +31,32 @@ export function forceBracketNotation(prefix: string, path: string): string {
   return `${prefix}.${path}`;
 }
 
-// Import the core Postman collection converter
+// Import existing converter but we'll override the script processing
 import { convert as postmanConvert } from './postman-converter';
 
 // =============================================================================
-// FILE TYPE DETECTION FUNCTIONS
+// ENHANCED CONVERSION OPTIONS
+// =============================================================================
+
+export interface ConversionOptions {
+  outputDir: string;
+  format: 'yaml' | 'json';
+  merge: boolean;
+  verbose: boolean;
+  preprocess?: boolean;
+  postprocess?: boolean;
+  configFile?: string;
+  transformEngine?: TransformEngine;
+}
+
+export interface ConversionResult {
+  successful: number;
+  failed: number;
+  outputs: string[];
+}
+
+// =============================================================================
+// ENHANCED FILE PROCESSING WITH TRANSFORMS
 // =============================================================================
 
 function isPostmanEnvironment(parsed: any): boolean {
@@ -92,9 +70,20 @@ function isPostmanCollection(parsed: any): boolean {
   return parsed.info && parsed.info.schema && Array.isArray(parsed.item);
 }
 
-// =============================================================================
-// POSTMAN ENVIRONMENT CONVERTER
-// =============================================================================
+function generateSecureInsomniaUUID(prefix: string): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    const uuid = crypto.randomUUID().replace(/-/g, '');
+    return `${prefix}_${uuid}`;
+  }
+
+  const timestamp = Date.now().toString(16).padStart(12, '0');
+  const random1 = Math.random().toString(16).substring(2, 10);
+  const random2 = Math.random().toString(16).substring(2, 10);
+  const random3 = Math.random().toString(16).substring(2, 6);
+
+  const hex32 = (timestamp + random1 + random2 + random3).substring(0, 32);
+  return `${prefix}_${hex32.padEnd(32, '0')}`;
+}
 
 function convertPostmanEnvironment(envData: any): any[] {
   const validPostmanEnvTypes = ['globals', 'environment'];
@@ -102,7 +91,6 @@ function convertPostmanEnvironment(envData: any): any[] {
     return [];
   }
 
-  // Generate proper UUID-style IDs
   const workspaceId = generateSecureInsomniaUUID('wrk');
   const envId = generateSecureInsomniaUUID('env');
 
@@ -140,24 +128,7 @@ function convertPostmanEnvironment(envData: any): any[] {
 }
 
 // =============================================================================
-// TYPE DEFINITIONS
-// =============================================================================
-
-export interface ConversionOptions {
-  outputDir: string;
-  format: 'yaml' | 'json';
-  merge: boolean;
-  verbose: boolean;
-}
-
-export interface ConversionResult {
-  successful: number;
-  failed: number;
-  outputs: string[];
-}
-
-// =============================================================================
-// MAIN CONVERSION ORCHESTRATOR
+// MAIN CONVERSION ORCHESTRATOR WITH TRANSFORMS
 // =============================================================================
 
 export async function convertPostmanToInsomnia(
@@ -171,6 +142,16 @@ export async function convertPostmanToInsomnia(
     outputs: []
   };
 
+  // Initialize transform engine if needed
+  let transformEngine = options.transformEngine;
+  if ((options.preprocess || options.postprocess) && !transformEngine) {
+    if (options.configFile && fs.existsSync(options.configFile)) {
+      transformEngine = TransformEngine.fromConfigFile(options.configFile);
+    } else {
+      transformEngine = new TransformEngine();
+    }
+  }
+
   const allCollections: any[] = [];
 
   for (const file of files) {
@@ -179,9 +160,17 @@ export async function convertPostmanToInsomnia(
         console.log(chalk.gray(`Processing: ${path.basename(file)}`));
       }
 
-      const rawData = fs.readFileSync(file, 'utf8');
-      const parsed = JSON.parse(rawData);
+      let rawData = fs.readFileSync(file, 'utf8');
 
+      // PREPROCESSING: Apply transforms to raw Postman JSON
+      if (options.preprocess && transformEngine) {
+        if (options.verbose) {
+          console.log(chalk.gray(`  Applying preprocessing transforms...`));
+        }
+        rawData = transformEngine.preprocess(rawData);
+      }
+
+      const parsed = JSON.parse(rawData);
       let converted: any[] | null = null;
 
       if (isPostmanEnvironment(parsed)) {
@@ -195,7 +184,8 @@ export async function convertPostmanToInsomnia(
           console.log(chalk.gray(`  Detected Postman collection file`));
         }
 
-        const collectionResult = postmanConvert(rawData);
+        // Use enhanced postman converter that supports transforms
+        const collectionResult = convertPostmanCollectionWithTransforms(rawData, transformEngine, options);
 
         if (Array.isArray(collectionResult)) {
           converted = collectionResult;
@@ -246,12 +236,54 @@ export async function convertPostmanToInsomnia(
 }
 
 // =============================================================================
-// INSOMNIA V5 FORMAT CONVERSION
+// ENHANCED POSTMAN CONVERTER WITH TRANSFORM SUPPORT
+// =============================================================================
+function convertPostmanCollectionWithTransforms(
+  rawData: string,
+  transformEngine?: TransformEngine,
+  options?: ConversionOptions
+): any[] | null {
+  try {
+    const collection = JSON.parse(rawData);
+
+    // Use the existing converter logic but with enhanced script processing
+    const result = postmanConvert(rawData, transformEngine);
+
+    // The result from postmanConvert might be ConvertResult, but we need any[] | null
+    // So we need to check if it's an array and handle other cases
+    if (Array.isArray(result)) {
+      // POSTPROCESSING: Apply transforms to converted scripts
+      if (options?.postprocess && transformEngine) {
+        if (options.verbose) {
+          console.log(chalk.gray(`  Applying postprocessing transforms to scripts...`));
+        }
+
+        result.forEach(item => {
+          if (item.preRequestScript) {
+            item.preRequestScript = transformEngine.postprocess(item.preRequestScript);
+          }
+          if (item.afterResponseScript) {
+            item.afterResponseScript = transformEngine.postprocess(item.afterResponseScript);
+          }
+        });
+      }
+
+      return result;
+    } else {
+      // If result is not an array (e.g., null or ConvertErrorResult), return null
+      return null;
+    }
+  } catch (error) {
+    console.error('Error in enhanced Postman conversion:', error);
+    return null;
+  }
+}
+
+// =============================================================================
+// EXISTING INSOMNIA V5 FORMAT CONVERSION (UNCHANGED)
 // =============================================================================
 
 function convertToInsomniaV5Format(resources: any[], collectionName: string) {
-
-  // Check if this is an environment-only workspace
   const workspace = resources.find(r => r._type === 'workspace');
 
   if (workspace && workspace.scope === 'environment') {
@@ -280,7 +312,6 @@ function convertToInsomniaV5Format(resources: any[], collectionName: string) {
     };
   }
 
-  // Handle collection workspaces
   const collectionWorkspace = resources.find(r => r._type === 'request_group' && r.parentId === '__WORKSPACE_ID__');
 
   const insomniaData = {
@@ -294,7 +325,6 @@ function convertToInsomniaV5Format(resources: any[], collectionName: string) {
       description: collectionWorkspace?.description || ''
     },
     collection: convertResourcesToInsomniaV5Collection(resources, collectionWorkspace?._id || '__WORKSPACE_ID__'),
-
     environments: {
       name: 'Base Environment',
       meta: {
@@ -305,7 +335,6 @@ function convertToInsomniaV5Format(resources: any[], collectionName: string) {
       },
       data: collectionWorkspace?.variable || {}
     },
-
     cookieJar: {
       name: 'Cookie Jar',
       meta: {
@@ -321,13 +350,8 @@ function convertToInsomniaV5Format(resources: any[], collectionName: string) {
   return insomniaData;
 }
 
-// =============================================================================
-// INSOMNIA V5 COLLECTION STRUCTURE CONVERSION
-// =============================================================================
-
 function convertResourcesToInsomniaV5Collection(resources: any[], parentId: string): any[] {
   const collection: any[] = [];
-
   const childResources = resources.filter(r => r.parentId === parentId);
 
   for (const resource of childResources) {
@@ -336,17 +360,11 @@ function convertResourcesToInsomniaV5Collection(resources: any[], parentId: stri
         name: resource.name || '',
         url: resource.url || '',
         method: resource.method || 'GET',
-
-        body: resource.body || {
-          mimeType: null,
-          text: ''
-        },
-
+        body: resource.body || { mimeType: null, text: '' },
         headers: (resource.headers || []).map((h: any) => ({
           name: h.name || '',
           value: h.value || ''
         })),
-
         parameters: (resource.parameters || []).map((p: any) => ({
           name: p.name || '',
           value: p.value || '',
@@ -385,7 +403,6 @@ function convertResourcesToInsomniaV5Collection(resources: any[], parentId: stri
           sortKey: Date.now()
         },
 
-        // CRITICAL: Add undefined properties to satisfy discriminated union
         children: undefined
       });
 
@@ -417,10 +434,8 @@ function convertResourcesToInsomniaV5Collection(resources: any[], parentId: stri
           sortKey: Date.now()
         },
 
-        // RECURSIVE: Process children of this group
         children: convertResourcesToInsomniaV5Collection(resources, resource._id),
 
-        // CRITICAL: Add undefined properties to satisfy discriminated union
         method: undefined,
         url: undefined,
         parameters: undefined,
@@ -433,7 +448,7 @@ function convertResourcesToInsomniaV5Collection(resources: any[], parentId: stri
 }
 
 // =============================================================================
-// FILE OUTPUT FUNCTIONS
+// FILE OUTPUT FUNCTIONS (UNCHANGED)
 // =============================================================================
 
 async function writeOutput(data: any, inputFile: string, options: ConversionOptions): Promise<string> {
@@ -474,33 +489,3 @@ async function writeMergedOutput(data: any, options: ConversionOptions): Promise
   fs.writeFileSync(outputFile, content, 'utf8');
   return outputFile;
 }
-
-// =============================================================================
-// NOTES FOR MAINTAINERS
-// =============================================================================
-
-/*
-UUID FORMAT FIX IMPLEMENTED:
-
-**PROBLEM SOLVED**: IDs were not matching Insomnia v5 UUID format expectations
-
-**NEW UUID FORMAT**:
-- OLD: wrk_a84180a_abc123_456 (random format)
-- NEW: wrk_a84180a6bd3f478ea499794fc2e6f479 (32-hex format)
-
-**MATCHES INSOMNIA v5 EXPECTATIONS**:
-✅ wrk_32hexcharacters for workspaces
-✅ env_32hexcharacters for environments
-✅ jar_32hexcharacters for cookie jars
-✅ Collision-resistant through timestamp + random components
-✅ Proper hex encoding matches Insomnia's native UUID format
-
-**MAINTAINS UNIQUENESS**:
-- Timestamp component ensures different conversion runs get different IDs
-- Multiple random components provide collision resistance
-- 32-character hex format exactly matches Insomnia's expectations
-- crypto.randomUUID() support when available for maximum security
-
-This ensures perfect compatibility with Insomnia v5 import expectations
-while maintaining all collision-resistance benefits.
-*/

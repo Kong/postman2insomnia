@@ -305,7 +305,7 @@ type ConvertResult = ImportRequest[] | ConvertErrorResult | null;
  * @param rawData Raw string content from the input file
  * @returns Conversion result or error
  */
-export type Converter = (rawData: string) => ConvertResult | Promise<ConvertResult>;
+export type Converter = (rawData: string, transformEngine?: any) => ConvertResult | Promise<ConvertResult>;
 
 /**
  * Import entry metadata

@@ -13,6 +13,7 @@ import {
   ImportPostman
 } from '../../src/postman-converter';
 import type { ImportRequest } from '../../src/types/entities';
+import { TransformEngine } from '../../src/transform-engine';
 
 describe('PostmanConverter - Extended Coverage', () => {
   // ==========================================================================
@@ -699,12 +700,10 @@ describe('PostmanConverter - Extended Coverage', () => {
       const input = 'Hello {{user-name}}, your session {{sessionId}} expires at {{$timestamp}}';
       const result = transformPostmanToNunjucksString(input);
 
-      // Debug: let's see what we actually get
       console.log('Input:', input);
       console.log('Result:', result);
 
       expect(result).toContain("{{_['user-name']}}");
-      // Based on the error, sessionId becomes {{_.sessionId}}
       expect(result).toContain('{{_.sessionId}}');
       expect(result).toContain("{% faker 'timestamp' %}");
     });

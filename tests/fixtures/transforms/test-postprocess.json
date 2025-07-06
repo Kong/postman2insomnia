@@ -1,0 +1,211 @@
+{
+  "_comment": "Test Postprocess Configuration",
+  "_description": "Configuration specifically designed for testing postprocessing rules. Contains test patterns that should be transformed by the postprocess engine.",
+  "_usage": "Used in automated tests to verify postprocessing functionality",
+  "_test_patterns": "This config contains rules that match specific test patterns used in unit tests",
+
+  "preprocess": [],
+
+  "postprocess": [
+    {
+      "name": "test-header-includes",
+      "description": "Test pattern: Fix header.includes() method calls",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\.includes\\(",
+      "replacement": "insomnia.response.headers.get($1).value.includes(",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-header-string-comparisons",
+      "description": "Test pattern: Fix header string equality comparisons",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\s*(===|!==)\\s*",
+      "replacement": "insomnia.response.headers.get($1).value $2 ",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-header-conditional-access",
+      "description": "Test pattern: Fix header access in conditional statements",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\s*&&\\s*insomnia\\.response\\.headers\\.get\\(\\1\\)\\.(?!value\\b)(\\w+)",
+      "replacement": "insomnia.response.headers.get($1) && insomnia.response.headers.get($1).value.$2",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-header-toLowerCase",
+      "description": "Test pattern: Fix header.toLowerCase() method calls",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\.toLowerCase\\(",
+      "replacement": "insomnia.response.headers.get($1).value.toLowerCase(",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-header-startsWith",
+      "description": "Test pattern: Fix header.startsWith() method calls",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\.startsWith\\(",
+      "replacement": "insomnia.response.headers.get($1).value.startsWith(",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-simple-replacement",
+      "description": "Test pattern: Simple text replacement for testing engine",
+      "pattern": "TEST_PATTERN_TO_REPLACE",
+      "replacement": "REPLACED_BY_TEST_ENGINE",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-capture-groups",
+      "description": "Test pattern: Verify capture group functionality",
+      "pattern": "CAPTURE_TEST\\(([^)]+)\\)",
+      "replacement": "CAPTURED($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-multiple-captures",
+      "description": "Test pattern: Multiple capture groups",
+      "pattern": "MULTI_CAPTURE\\(([^,]+),\\s*([^)]+)\\)",
+      "replacement": "MULTI_RESULT($1, $2)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-complex-header-chain",
+      "description": "Test pattern: Complex chained header operations",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\.toLowerCase\\(\\)\\.includes\\(",
+      "replacement": "insomnia.response.headers.get($1).value.toLowerCase().includes(",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-header-in-template",
+      "description": "Test pattern: Header access in template literals",
+      "pattern": "\\$\\{insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\}",
+      "replacement": "${insomnia.response.headers.get($1).value}",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-disabled-rule",
+      "description": "Test pattern: This rule should be skipped (disabled)",
+      "pattern": "SHOULD_NOT_BE_REPLACED",
+      "replacement": "THIS_SHOULD_NOT_APPEAR",
+      "flags": "g",
+      "enabled": false
+    },
+    {
+      "name": "test-json-parse-header",
+      "description": "Test pattern: JSON.parse() calls on headers",
+      "pattern": "JSON\\.parse\\(insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\)",
+      "replacement": "JSON.parse(insomnia.response.headers.get($1).value)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-console-log-header",
+      "description": "Test pattern: Header access in console.log",
+      "pattern": "console\\.log\\(([^)]*?)insomnia\\.response\\.headers\\.get\\(([^)]+)\\)([^)]*)\\)",
+      "replacement": "console.log($1insomnia.response.headers.get($2).value$3)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-unicode-pattern",
+      "description": "Test pattern: Unicode characters in patterns",
+      "pattern": "测试_PATTERN",
+      "replacement": "测试_REPLACED",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-case-sensitive",
+      "description": "Test pattern: Case sensitive matching",
+      "pattern": "CaseSensitive",
+      "replacement": "CASE_REPLACED",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-case-insensitive",
+      "description": "Test pattern: Case insensitive matching",
+      "pattern": "caseinsensitive",
+      "replacement": "CASE_INSENSITIVE_REPLACED",
+      "flags": "gi",
+      "enabled": true
+    },
+    {
+      "name": "test-multiline-pattern",
+      "description": "Test pattern: Multiline matching",
+      "pattern": "START_MULTILINE[\\s\\S]*?END_MULTILINE",
+      "replacement": "MULTILINE_REPLACED",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-word-boundary",
+      "description": "Test pattern: Word boundary matching",
+      "pattern": "\\bWORD_BOUNDARY\\b",
+      "replacement": "BOUNDARY_REPLACED",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-optional-groups",
+      "description": "Test pattern: Optional capture groups",
+      "pattern": "OPTIONAL\\(([^)]+)(?:,\\s*([^)]+))?\\)",
+      "replacement": "OPTIONAL_RESULT($1, $2)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-lookahead",
+      "description": "Test pattern: Positive lookahead",
+      "pattern": "LOOKAHEAD(?=_SUFFIX)",
+      "replacement": "LOOKAHEAD_MATCHED",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-lookbehind",
+      "description": "Test pattern: Positive lookbehind (if supported)",
+      "pattern": "(?<=PREFIX_)LOOKBEHIND",
+      "replacement": "LOOKBEHIND_MATCHED",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-non-capturing-group",
+      "description": "Test pattern: Non-capturing groups",
+      "pattern": "NON_CAPTURE(?:_GROUP)?\\(([^)]+)\\)",
+      "replacement": "NON_CAPTURE_RESULT($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-greedy-vs-lazy",
+      "description": "Test pattern: Lazy quantifier",
+      "pattern": "GREEDY_START(.*?)GREEDY_END",
+      "replacement": "LAZY_MATCH($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-escape-sequences",
+      "description": "Test pattern: Escaped characters",
+      "pattern": "ESCAPE\\$\\(([^)]+)\\)\\.",
+      "replacement": "ESCAPED_RESULT($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "test-performance-pattern",
+      "description": "Test pattern: Performance test with simple replacement",
+      "pattern": "PERF_TEST",
+      "replacement": "PERF_REPLACED",
+      "flags": "g",
+      "enabled": true
+    }
+  ]
+}

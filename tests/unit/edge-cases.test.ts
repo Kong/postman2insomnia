@@ -11,6 +11,7 @@ import {
   normaliseJsonPath
 } from '../../src/postman-converter';
 import type { ImportRequest } from '../../src/types/entities';
+import { TransformEngine } from '../../src/transform-engine';
 
 describe('Edge Cases and Utilities', () => {
   // ==========================================================================
@@ -106,7 +107,6 @@ describe('Edge Cases and Utilities', () => {
       const result = translateHandlersInScript(script);
 
       expect(result).toContain('insomnia.test("Test 1"');
-      // Your implementation converts ALL pm. references, even when qualified
       expect(result).toContain('example.insomnia.test("Should not convert")');
       expect(result).toContain('"insomnia.test should not convert in strings"');
       expect(result).toContain('// insomnia.test in comments should not convert');
