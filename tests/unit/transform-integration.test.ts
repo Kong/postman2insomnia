@@ -228,12 +228,12 @@ describe('Transform Integration Tests', () => {
         const parsed = yaml.load(content) as any;
 
         const request = parsed.collection[0];
-        
+
         if (request.scripts.afterResponse) {
           expect(request.scripts.afterResponse).toContain('insomnia.test');
           expect(request.scripts.afterResponse).not.toContain('tests[');
         }
-        
+
         if (request.scripts.preRequest) {
           expect(request.scripts.preRequest).toContain('insomnia.globals.get');
           expect(request.scripts.preRequest).not.toContain('postman.getGlobalVariable');
@@ -661,11 +661,11 @@ describe('Transform Integration Tests', () => {
 
       requests.forEach((request: any) => {
         const script = request.scripts.afterResponse;
-        
+
         // Should not contain old syntax
         expect(script).not.toContain('tests[');
         expect(script).not.toContain('postman.setEnvironmentVariable');
-        
+
         // Should contain proper insomnia syntax
         expect(script).toContain('insomnia.test');
         if (script.includes('headers.get')) {

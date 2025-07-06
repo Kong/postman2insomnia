@@ -2,7 +2,6 @@
 // UPDATED CONVERTER TESTS - WITH TRANSFORM SUPPORT - FIXED
 // =============================================================================
 // Enhanced tests for the main converter orchestration with transform integration
-// Fixed preprocessing transform patterns to match actual default rules
 // =============================================================================
 
 import * as fs from 'fs';
@@ -527,7 +526,7 @@ describe('Converter with Transform Support', () => {
         const parsed = yaml.load(content) as any;
 
         const request = parsed.collection[0];
-        
+
         if (request.scripts.afterResponse) {
           const script = request.scripts.afterResponse;
           if (script.includes('insomnia.test')) {

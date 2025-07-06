@@ -1,5 +1,5 @@
 // =============================================================================
-// POSTMAN CONVERTER TESTS - CLEAN VERSION - FIXED
+// POSTMAN CONVERTER TESTS
 // =============================================================================
 
 import {
@@ -168,10 +168,10 @@ describe('PostmanConverter', () => {
     test('should handle malformed JSON gracefully', () => {
       // Mock console.error to suppress expected error output
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      
+
       const result = convert('{ invalid json }');
       expect(result).toBeNull();
-      
+
       // Restore console.error
       consoleSpy.mockRestore();
     });
@@ -419,15 +419,6 @@ describe('PostmanConverter', () => {
     });
   });
 });
-
-// =============================================================================
-// ADDITIONAL TESTS FOR POSTMAN-CONVERTER.TEST.TS
-// =============================================================================
-// New tests to add to the existing postman-converter.test.ts file
-// These tests focus on the transform engine integration in the core converter
-// =============================================================================
-
-// ADD THESE TESTS TO THE EXISTING postman-converter.test.ts FILE:
 
 describe('Transform Engine Integration in PostmanConverter', () => {
   // ==========================================================================
@@ -835,7 +826,6 @@ describe('Transform Engine Integration in PostmanConverter', () => {
       expect(resultWithEngine).toContain('insomnia.response.headers.get("Content-Type").value.includes("json")');
       expect(resultWithEngine).toContain('insomnia.response.headers.get("Status").value === "success"');
 
-      // Test without transform engine (backward compatibility)
       const resultWithoutEngine = translateHandlersInScript(script);
 
       expect(resultWithoutEngine).toContain('insomnia.test');
@@ -1076,7 +1066,6 @@ describe('Transform Engine Integration in PostmanConverter', () => {
             allIds.add(item._id);
           }
           if (item.afterResponseScript) {
-            // Fixed: Use separate assertions instead of logical OR
             const hasValueIncludes = item.afterResponseScript.includes('.value.includes');
             const hasValueEquals = item.afterResponseScript.includes('.value === ');
             expect(hasValueIncludes || hasValueEquals).toBe(true);
@@ -1173,7 +1162,6 @@ describe('Transform Engine Integration in PostmanConverter', () => {
       const transformEngine = new TransformEngine();
       const rawData = JSON.stringify(collection);
 
-      // Mock console.error to suppress expected error output during testing
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
       // Should not throw error even with malformed scripts
@@ -1181,7 +1169,7 @@ describe('Transform Engine Integration in PostmanConverter', () => {
         const result = convert(rawData, transformEngine);
         expect(result).toBeTruthy();
       }).not.toThrow();
-      
+
       // Restore console.error
       consoleSpy.mockRestore();
     });
@@ -1260,8 +1248,6 @@ describe('Transform Engine Integration in PostmanConverter', () => {
 // =============================================================================
 // ADDITIONAL HELPER FUNCTIONS FOR TESTING
 // =============================================================================
-
-// Add these helper functions to the existing test file if not already present:
 
 function createSimpleV21Collection(name = 'Test Collection') {
   return {

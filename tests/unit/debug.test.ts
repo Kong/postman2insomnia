@@ -6,7 +6,6 @@ import * as path from 'path';
 import chalk from 'chalk';
 import * as yaml from 'js-yaml';
 
-// STEP 1: Add a simple unit test to verify the transform engine itself works
 describe('Transform Engine Isolated Testing', () => {
   it('should verify transform engine works on simple string', () => {
     const engine = new TransformEngine();
@@ -54,7 +53,6 @@ describe('Transform Engine Isolated Testing', () => {
   });
 });
 
-// STEP 2: Add debugging to the failing test itself
 describe('Full Pipeline Debugging', () => {
   it('should apply both preprocessing and postprocessing in full pipeline (with debugging)', async () => {
     console.log('🔍 STEP 3 - Full Pipeline Test with Debugging');
@@ -94,7 +92,6 @@ describe('Full Pipeline Debugging', () => {
       // Write the collection
       fs.writeFileSync(inputFile, JSON.stringify(legacyCollection, null, 2));
 
-      // Step 3A: Check what we actually wrote to the file
       const rawContent = fs.readFileSync(inputFile, 'utf8');
       console.log('📄 Raw file content around script:');
       const scriptStart = rawContent.indexOf('postman.getGlobalVariable');
@@ -105,7 +102,6 @@ describe('Full Pipeline Debugging', () => {
         console.log('File contains:', rawContent.substring(0, 500));
       }
 
-      // Step 3B: Test preprocessing manually
       const transformEngine = new TransformEngine();
       const preprocessedContent = transformEngine.preprocess(rawContent);
       console.log('🔄 After preprocessing:');
@@ -125,13 +121,12 @@ describe('Full Pipeline Debugging', () => {
         console.log('✅ postman.getGlobalVariable removed by preprocessing');
       }
 
-      // Step 3C: Run the full conversion with verbose logging
       console.log('🚀 Running full conversion...');
       const result = await convertPostmanToInsomnia([inputFile], {
         outputDir: tempDir,
         format: 'yaml',
         merge: false,
-        verbose: true, // This should show our internal logging
+        verbose: true,
         preprocess: true,
         postprocess: true
       });
@@ -143,7 +138,6 @@ describe('Full Pipeline Debugging', () => {
       });
 
       if (result.successful > 0) {
-        // Step 3D: Check the final output
         const outputContent = fs.readFileSync(result.outputs[0], 'utf8');
         const parsedOutput = yaml.load(outputContent) as any;
         const convertedRequest = parsedOutput.collection.find((item: any) =>
@@ -160,8 +154,6 @@ describe('Full Pipeline Debugging', () => {
           console.log('- Contains pm.globals.get:', preRequestScript.includes('pm.globals.get'));
           console.log('- Contains postman.getGlobalVariable:', preRequestScript.includes('postman.getGlobalVariable'));
 
-          // This is where the original test fails - let's see what we actually got
-          // expect(preRequestScript).toContain('insomnia.globals.get');
         } else {
           console.log('❌ No scripts found in converted request');
           console.log('Converted request structure:', JSON.stringify(convertedRequest, null, 2));
@@ -174,12 +166,10 @@ describe('Full Pipeline Debugging', () => {
   });
 });
 
-// STEP 4: Quick verification test
 describe('Pattern Verification', () => {
   it('should verify the exact pattern used in the failing test', () => {
     console.log('🔍 STEP 4 - Pattern Verification');
 
-    // Test the exact string that appears in the JSON
     const jsonString = '"postman.getGlobalVariable(\\"timestamp\\");"';
     const plainString = 'postman.getGlobalVariable("timestamp");';
 
