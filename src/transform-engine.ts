@@ -154,14 +154,6 @@ export const DEFAULT_POSTPROCESS_RULES: TransformRule[] = [
     flags: "g",
     enabled: true
   },
-  {
-    name: "fix-response-json-access",
-    description: "Fix response JSON access if needed",
-    pattern: "insomnia\\.response\\.json\\(\\)\\.(?!data\\b)(\\w+)",
-    replacement: "insomnia.response.json().$1",
-    flags: "g",
-    enabled: false // Disabled by default, enable if needed
-  }
 ];
 
 // =============================================================================
