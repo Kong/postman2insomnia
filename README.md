@@ -1,19 +1,32 @@
 # Postman to Insomnia CLI Converter
 
-A command-line tool that converts Postman collections and environments to Insomnia v5 YAML format. This tool was built by extracting and adapting the core conversion logic from Insomnia's UI codebase to create a standalone CLI utility.
+A powerful command-line tool that converts Postman collections and environments to Insomnia v5 YAML format with advanced script compatibility features. This tool was built by extracting and adapting the core conversion logic from Insomnia's UI codebase to create a standalone CLI utility.
 
-## Features
+## 🚀 Features
 
+### Core Conversion
 - **Converts Postman Collections** (v2.0 and v2.1) to Insomnia v5 YAML format
 - **Converts Postman Environments** (including globals) to Insomnia v5 YAML format
-- **Batch processing** of multiple files
-- **Merge multiple collections** into a single output
+- **Batch processing** of multiple files with glob pattern support
+- **Merge multiple collections** into a single output file
 - **Preserves folder structure** and request organization
 - **Handles authentication** methods (Basic, Bearer, OAuth, API Key, etc.)
-- **Processes scripts** (pre-request and post-response)
 - **Maintains variables** and environment data
 - **Filters disabled variables** from environments
 - **Auto-detects file types** (collection vs environment)
+
+### 🔧 Transform System (New!)
+- **Preprocessing transforms** - Fix deprecated Postman syntax before conversion
+- **Postprocessing transforms** - Fix Insomnia API differences after conversion
+- **Script compatibility engine** - Automatically resolves API differences between Postman and Insomnia
+- **Custom transform rules** - Define your own conversion patterns via config files
+- **Built-in compatibility fixes** for common script issues
+
+### 🛠️ Script Processing
+- **Pre-request and post-response scripts** conversion from `pm.*` to `insomnia.*` syntax
+- **Automatic header access fixes** - Resolves `headers.get(...).includes is not a function` errors
+- **Legacy syntax updates** - Converts old `postman.*` and `tests[]` syntax to modern equivalents
+- **API method compatibility** - Fixes method call differences between platforms
 
 ## Installation
 
@@ -78,17 +91,49 @@ postman2insomnia collection.json -o ./converted-files
 postman2insomnia collection.json -v
 ```
 
+### 🆕 Transform Usage
+
+```bash
+# Apply both preprocessing and postprocessing transforms (recommended)
+postman2insomnia collection.json --preprocess --postprocess
+
+# Apply only preprocessing (fix deprecated Postman syntax)
+postman2insomnia collection.json --preprocess
+
+# Apply only postprocessing (fix Insomnia API differences)
+postman2insomnia collection.json --postprocess
+
+# Use custom transform configuration
+postman2insomnia collection.json --config-file ./my-transforms.json
+
+# Generate a sample configuration file
+postman2insomnia --generate-config ./sample-config.json
+```
+
 ### Advanced Options
 
 ```bash
-# Merge multiple collections into one file
-postman2insomnia col1.json col2.json env.json -m
+# Merge multiple collections with transforms
+postman2insomnia col1.json col2.json env.json -m --preprocess --postprocess
 
-# Custom output directory with verbose logging
-postman2insomnia exports/*.json -o ./insomnia-imports -v
+# Batch convert with custom transforms and verbose output
+postman2insomnia exports/*.json --preprocess --postprocess -o ./output -v
 
-# Batch convert all Postman exports
-postman2insomnia *.json -o ./output -v
+# Use custom config for enterprise collections
+postman2insomnia enterprise/*.json --config-file ./enterprise-transforms.json -o ./converted
+```
+
+### Transform Configuration Management
+
+```bash
+# Generate sample configuration file
+postman2insomnia config --generate ./transforms.json
+
+# Validate configuration file
+postman2insomnia config --validate ./transforms.json
+
+# Use configuration in conversion
+postman2insomnia collection.json --config-file ./transforms.json
 ```
 
 ### Command Line Options
@@ -98,8 +143,31 @@ postman2insomnia *.json -o ./output -v
 | `--output <dir>` | `-o` | Output directory | `./output` |
 | `--merge` | `-m` | Merge all collections into a single file | `false` |
 | `--verbose` | `-v` | Verbose output | `false` |
+| `--preprocess` | | Apply preprocessing transforms | `false` |
+| `--postprocess` | | Apply postprocessing transforms | `false` |
+| `--config-file <path>` | | Custom transform configuration file | |
+| `--generate-config <path>` | | Generate sample transform configuration | |
 | `--help` | `-h` | Show help | |
 | `--version` | `-V` | Show version | |
+
+## 🔍 When to Use Transforms
+
+### Use `--preprocess` when:
+- Converting old Postman collections with deprecated syntax
+- Scripts use legacy `postman.*` methods instead of `pm.*`
+- You see `tests[...]` syntax in scripts
+- Collections use outdated variable access patterns
+
+### Use `--postprocess` when:
+- Converted scripts fail in Insomnia with method errors
+- You get "`headers.get(...).includes is not a function`" errors
+- Header comparisons don't work as expected
+- Request manipulation methods fail
+
+### Use both (recommended):
+```bash
+postman2insomnia collection.json --preprocess --postprocess
+```
 
 ## File Types Supported
 
@@ -114,15 +182,15 @@ postman2insomnia *.json -o ./output -v
 - **Contains**: Environment variables, global variables
 - **Note**: Disabled variables are automatically filtered out
 
-## Examples
+## 📋 Examples
 
-### Convert a Collection
+### Convert a Collection with Script Fixes
 
 ```bash
-# Input: my-api.json (Postman collection)
-postman2insomnia my-api.json
+# Input: my-api.json (Postman collection with scripts)
+postman2insomnia my-api.json --preprocess --postprocess
 
-# Output: ./output/my-api.insomnia.yaml
+# Output: ./output/my-api.insomnia.yaml (with working scripts)
 ```
 
 ### Convert Environments
@@ -136,101 +204,205 @@ postman2insomnia dev-env.json prod-env.json -o ./envs
 # ./envs/prod-env.insomnia.yaml
 ```
 
-### Batch Conversion with Merging
+### Batch Conversion with Custom Transforms
 
 ```bash
-# Convert all Postman exports and merge into one file
-postman2insomnia postman-exports/*.json -m -o ./merged
+# Convert all exports with custom transform rules
+postman2insomnia postman-exports/*.json \
+  --config-file ./my-transforms.json \
+  -o ./converted \
+  -v
 
-# Output: ./merged/merged-collection.insomnia.yaml
+# Merge into single file with transforms
+postman2insomnia postman-exports/*.json \
+  --preprocess --postprocess \
+  --merge \
+  -o ./merged
+```
+
+### Enterprise Workflow
+
+```bash
+# 1. Generate custom configuration
+postman2insomnia config --generate ./company-transforms.json
+
+# 2. Edit configuration for your needs
+# (edit ./company-transforms.json)
+
+# 3. Validate configuration
+postman2insomnia config --validate ./company-transforms.json
+
+# 4. Convert with custom rules
+postman2insomnia collections/*.json \
+  --config-file ./company-transforms.json \
+  -o ./insomnia-imports \
+  --verbose
+```
+
+## 🐛 Common Issues & Solutions
+
+### Script Compatibility Issues
+
+**Problem**: Converted scripts fail with method errors
+```javascript
+// ❌ This fails in Insomnia
+if (insomnia.response.headers.get('Content-Type').includes('json')) {
+    // Error: headers.get(...).includes is not a function
+}
+```
+
+**Solution**: Use `--postprocess` flag
+```bash
+postman2insomnia collection.json --postprocess
+```
+```javascript
+// ✅ This works after postprocessing
+if (insomnia.response.headers.get('Content-Type').value.includes('json')) {
+    // Fixed: .value property added automatically
+}
+```
+
+### Legacy Postman Syntax
+
+**Problem**: Old collections use deprecated methods
+```javascript
+// ❌ Deprecated syntax
+var token = postman.getEnvironmentVariable('auth_token');
+tests['Status is 200'] = responseCode.code === 200;
+```
+
+**Solution**: Use `--preprocess` flag
+```bash
+postman2insomnia collection.json --preprocess
+```
+```javascript
+// ✅ Updated to modern syntax
+var token = pm.environment.get('auth_token');
+pm.test('Status is 200', function() { pm.expect(pm.response.code).to.equal(200); });
+```
+
+## 📖 Advanced Transform Configuration
+
+### Custom Transform Rules
+
+Create a configuration file to define custom transformation patterns:
+
+```bash
+# Generate sample configuration
+postman2insomnia --generate-config ./custom-transforms.json
+```
+
+Example configuration:
+```json
+{
+  "preprocess": [
+    {
+      "name": "fix-custom-auth",
+      "description": "Fix custom authentication pattern",
+      "pattern": "customAuth\\.(\\w+)",
+      "replacement": "pm.globals.get('$1')",
+      "flags": "g",
+      "enabled": true
+    }
+  ],
+  "postprocess": [
+    {
+      "name": "fix-custom-headers",
+      "description": "Fix custom header access pattern",
+      "pattern": "insomnia\\.customHeader\\((.*?)\\)",
+      "replacement": "insomnia.request.getHeader($1)",
+      "flags": "g",
+      "enabled": true
+    }
+  ]
+}
+```
+
+### CI/CD Integration
+
+```yaml
+# GitHub Actions example
+name: Convert Postman Collections
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install converter
+        run: |
+          git clone <this-repo-url>
+          cd postman-to-insomnia-cli
+          npm install && npm run build
+          npm install -g .
+
+      - name: Convert collections
+        run: |
+          postman2insomnia postman-exports/*.json \
+            --preprocess --postprocess \
+            --output ./insomnia-collections \
+            --verbose
+
+      - name: Upload converted files
+        uses: actions/upload-artifact@v3
+        with:
+          name: insomnia-collections
+          path: ./insomnia-collections/
 ```
 
 ## 🏗️ How This Tool Was Created
 
-This CLI tool was built by extracting and adapting the core conversion logic from **Insomnia's open-source UI codebase**. The original code handles Postman imports within the Insomnia desktop application.
+This CLI tool was built by extracting and adapting the core conversion logic from **Insomnia's open-source UI codebase**. The original conversion functions were designed for UI integration and database storage. This project:
 
-### Source Material
+1. **Extracted core logic** from Insomnia source files:
+   - `postman-converter.ts` - Collection conversion logic
+   - `insomnia-v5.ts` - Insomnia v5 format generation
+   - `import-v5-parser.ts` - Schema validation and parsing
+   - `postman-env.ts` - Environment file processing
 
-The conversion logic was adapted from these Insomnia source files:
-- **`postman-converter.ts`** - Core Postman collection parsing and conversion
-- **`insomnia-v5.ts`** - Insomnia v5 format export logic
-- **`import-v5-parser.ts`** - Zod schema validation for v5 format
-- **`postman-env.ts`** - Postman environment conversion logic
+2. **Removed UI dependencies** and database integration
 
-### Key Adaptations Made
+3. **Added CLI interface** with Commander.js for user-friendly command-line usage
 
-#### 1. **Removed UI Dependencies**
-- Extracted constants (`CONTENT_TYPE_*`) from UI modules
-- Replaced UI-specific faker functions with simplified versions
-- Removed database and UI state management dependencies
+4. **Enhanced with Transform System** to solve script compatibility issues
 
-#### 2. **Added CLI Interface**
-- Built command-line interface using Commander.js
-- Added file I/O operations for batch processing
-- Implemented glob pattern support for multiple files
+5. **Maintained compatibility** with original Insomnia conversion logic
 
-#### 3. **Enhanced File Type Detection**
-```typescript
-// Auto-detect Postman collections vs environments
-function isPostmanEnvironment(parsed: any): boolean {
-  return parsed._postman_variable_scope && Array.isArray(parsed.values);
-}
+## 🔧 Technical Details
 
-function isPostmanCollection(parsed: any): boolean {
-  return parsed.info && parsed.info.schema && Array.isArray(parsed.item);
-}
+### Architecture
+```
+├── cli.ts                 # CLI interface and argument parsing
+├── converter.ts           # Main conversion orchestration
+├── postman-converter.ts   # Core Postman parsing (adapted from Insomnia)
+├── transform-engine.ts    # Extensible transform system
+├── postman-env.ts         # Environment file conversion
+└── types/                 # TypeScript definitions
 ```
 
-#### 4. **Strict Insomnia v5 Schema Compliance**
-- Used exact Zod schema definitions from Insomnia source
-- Added discriminated union properties to satisfy validation:
-  ```typescript
-  // For Request objects
-  children: undefined
-
-  // For RequestGroup objects
-  method: undefined,
-  url: undefined,
-  parameters: undefined,
-  pathParameters: undefined
-  ```
-
-#### 5. **YAML Output Generation**
-- Added `js-yaml` integration for human-readable YAML output
-- Ensured compatibility with Insomnia's v5 import system
-
-#### 6. **Authentication Simplification**
-- Simplified complex authentication methods while preserving structure
-- Maintained compatibility with Insomnia's authentication system
-
-## 🔍 Technical Details
-
 ### Dependencies
-- **Commander.js** - CLI argument parsing
-- **js-yaml** - YAML output generation
-- **chalk** - Colored console output
-- **glob** - File pattern matching
+- **Commander.js** - CLI argument parsing and command structure
+- **js-yaml** - YAML generation for Insomnia-compatible output
+- **chalk** - Colored console output for better user experience
+- **glob** - File pattern matching for batch operations
 
-### TypeScript Configuration
-- Strict typing enabled
-- ES2020 target for modern Node.js compatibility
-- CommonJS modules for CLI distribution
+### Output Format
+- **Collections**: `collection.insomnia.rest/5.0` YAML format
+- **Environments**: `environment.insomnia.rest/5.0` YAML format
+- **Schema compliance**: Generated files pass Insomnia v5 validation
 
-### Output Structure
-Generated files follow the exact **Insomnia v5 specification**:
-- Collections: `collection.insomnia.rest/5.0`
-- Environments: `environment.insomnia.rest/5.0`
-- Proper meta objects with timestamps and IDs
-- Valid Zod schema compliance for import validation
-
-## Known Limitations
+## ⚠️ Limitations
 
 1. **Simplified Authentication**: Some complex authentication flows are simplified but functional
-2. **Script Compatibility**: Pre-request and post-response scripts are converted from `pm.*` to `insomnia.*` syntax
+2. **Script Compatibility**: Pre-request and post-response scripts are converted from `pm.*` to `insomnia.*` syntax with automatic compatibility fixes
 3. **v5 Format Only**: Outputs Insomnia v5 format (not v4 or older)
 4. **Node.js Required**: Requires Node.js runtime (not a standalone binary)
+5. **YAML Output**: Primarily generates YAML (JSON option exists but not fully implemented)
 
-## Contributing
+## 🤝 Contributing
 
 This tool was built by adapting Insomnia's existing codebase. When contributing:
 
@@ -238,8 +410,24 @@ This tool was built by adapting Insomnia's existing codebase. When contributing:
 2. **Follow TypeScript best practices** used in the Insomnia codebase
 3. **Test with real Postman exports** to ensure compatibility
 4. **Update schema compliance** if Insomnia v5 format changes
+5. **Add transform rules** for new compatibility issues discovered
 
-## License
+### Adding Transform Rules
+
+To add new transform rules:
+
+1. Edit `src/transform-engine.ts`
+2. Add rules to `DEFAULT_PREPROCESS_RULES` or `DEFAULT_POSTPROCESS_RULES`
+3. Test with collections that exhibit the issue
+4. Update documentation
+
+## 📚 Documentation
+
+- **[Transform System Guide](docs/transform-system.md)** - Comprehensive guide to the transform system
+- **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
+- **[Configuration Reference](docs/configuration.md)** - Complete configuration options
+
+## 📄 License
 
 This project adapts open-source code from the Insomnia project. Please refer to the original Insomnia license terms.
 
@@ -251,3 +439,5 @@ This project adapts open-source code from the Insomnia project. Please refer to 
 ---
 
 **Built with ❤️ by adapting the excellent work of the Insomnia team**
+
+**Transform System**: Solving script compatibility issues so your converted collections just work! ✨

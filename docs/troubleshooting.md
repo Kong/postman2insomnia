@@ -174,64 +174,6 @@ pm.test("Status code is 200", function() {
 });
 ```
 
-## 🛠️ Complex Script Issues
-
-### Issue: Conditional Header Access Fails
-
-**Problem**: Complex conditions with header access fail in Insomnia:
-
-```javascript
-// This pattern fails:
-if (insomnia.response.headers.get("Content-Type") &&
-    insomnia.response.headers.get("Content-Type").includes("json")) {
-  // Second part fails
-}
-```
-
-**Solution**: Use postprocessing with comprehensive config:
-
-```bash
-postman2insomnia collection.json --postprocess --config-file ./configs/comprehensive-transforms.json
-```
-
-**Manual Fix**:
-```javascript
-// Fix by adding .value to the second reference:
-if (insomnia.response.headers.get("Content-Type") &&
-    insomnia.response.headers.get("Content-Type").value.includes("json")) {
-  // Now works
-}
-```
-
-### Issue: Multiple Header Methods in One Statement
-
-**Problem**: Chained header methods fail:
-
-```javascript
-// This fails:
-const isJsonUtf8 = insomnia.response.headers.get("Content-Type")
-  .toLowerCase()
-  .includes("application/json") &&
-  insomnia.response.headers.get("Content-Type")
-  .includes("utf-8");
-```
-
-**Solution**: Use comprehensive postprocessing:
-
-```bash
-postman2insomnia collection.json --postprocess --config-file ./configs/comprehensive-transforms.json
-```
-
-**Custom Transform Rule**:
-```json
-{
-  "name": "fix-chained-header-methods",
-  "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\.(toLowerCase|toUpperCase|trim|includes|startsWith)\\(",
-  "replacement": "insomnia.response.headers.get($1).value.$2(",
-  "flags": "g"
-}
-```
-
 ## 📝 Configuration Issues
 
 ### Issue: Transform Config Not Found
@@ -373,8 +315,6 @@ postman2insomnia collection.json
 
 **Debug Transforms**:
 ```bash
-# Test with minimal transforms:
-postman2insomnia collection.json --config-file ./configs/minimal-transforms.json --verbose
 
 # Test preprocessing only:
 postman2insomnia collection.json --preprocess --verbose
@@ -430,48 +370,6 @@ grep "_postman_variable_scope" environment.json
 
 **If disabled variables appear**, this is a bug - please report it.
 
-## 🚀 Performance Issues
-
-### Issue: Slow Conversion with Transforms
-
-**Problem**: Conversion takes too long when using transforms.
-
-**Solutions**:
-
-1. **Use minimal transforms**:
-```bash
-postman2insomnia collection.json --config-file ./configs/minimal-transforms.json
-```
-
-2. **Disable unnecessary rules**:
-```json
-{
-  "postprocess": [
-    {
-      "name": "expensive-rule",
-      "enabled": false
-    },
-    {
-      "name": "simple-rule",
-      "enabled": true
-    }
-  ]
-}
-```
-
-3. **Optimize regex patterns**:
-```json
-// ❌ Slow: Too broad
-{
-  "pattern": ".*insomnia.*headers.*"
-}
-
-// ✅ Fast: Specific
-{
-  "pattern": "insomnia\\.response\\.headers\\.get\\([^)]+\\)\\.includes\\("
-}
-```
-
 ## 🆘 Getting More Help
 
 ### Enable Debug Mode
@@ -488,7 +386,7 @@ postman2insomnia *.json --verbose
 
 1. **Isolate the problem** in a small collection
 2. **Remove sensitive data** (URLs, tokens, etc.)
-3. **Test with default configs** first
+3. **Test with default transforms** first
 4. **Share the specific error message**
 
 ### Common Debug Commands
@@ -500,10 +398,7 @@ postman2insomnia collection.json
 # Test with default transforms:
 postman2insomnia collection.json --preprocess --postprocess
 
-# Test with minimal config:
-postman2insomnia collection.json --preprocess --postprocess --config-file ./configs/minimal-transforms.json
-
-# Generate fresh config:
+# Generate fresh config (modify if required):
 postman2insomnia --generate-config ./debug-config.json
 
 # Validate your config:
@@ -528,9 +423,6 @@ When reporting issues, include:
 
 | Problem | Solution |
 |---------|----------|
-| `headers.get(...).includes is not a function` | Use `--postprocess` |
-| `pm.responseHeaders is undefined` | Use `--preprocess` |
-| `postman.setEnvironmentVariable is not a function` | Use `--preprocess` |
 | Scripts work in Postman but fail in Insomnia | Use `--postprocess` |
 | Very old collection with weird syntax | Use `--preprocess` |
 | Need both fixes | Use `--preprocess --postprocess` |
@@ -553,4 +445,3 @@ postman2insomnia --generate-config ./working-config.json
 **Related Documentation:**
 - [Transform System Guide](transform-system.md) - Complete transform documentation
 - [Configuration Reference](configuration.md) - All config options
-- [Examples](../examples/) - Working examples with before/after comparisons

@@ -5,6 +5,45 @@ All notable changes to the Postman to Insomnia CLI converter will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-07-06
+
+### Added
+- **Transform System** - Extensible regex-based preprocessing and postprocessing system
+- **Script Compatibility Engine** - Automatically fixes API differences between Postman and Insomnia
+- **Preprocessing Transforms** - Fix deprecated Postman syntax in raw JSON before conversion
+- **Postprocessing Transforms** - Fix Insomnia API differences in converted scripts
+- **Custom Transform Configuration** - Support for user-defined transform rules via config files
+- **Enhanced CLI Options** - New flags for transform control:
+  - `--preprocess` - Apply preprocessing transforms to fix deprecated Postman syntax
+  - `--postprocess` - Apply postprocessing transforms to fix Insomnia API differences
+  - `--config-file <path>` - Use custom transform configuration file
+  - `--generate-config <path>` - Generate sample transform configuration file
+- **Config Subcommand** - New `config` command with validate and generate options
+- **Comprehensive Documentation** - Added transform-system.md guide with examples and troubleshooting
+
+### Fixed
+- **Header Access Issues** - Automatic fix for `insomnia.response.headers.get(...).includes is not a function` errors
+- **API Method Differences** - Converts incompatible method calls between Postman and Insomnia APIs
+- **Deprecated Postman Syntax** - Automatically updates legacy `postman.*` and `tests[]` syntax
+- **String Comparison Failures** - Fixes header value comparisons that fail due to object vs string differences
+- **Request Header Manipulation** - Converts `insomnia.request.headers.add()` to proper `addHeader()` calls
+
+### Changed
+- **Script Processing Pipeline** - Enhanced script conversion with two-stage transform system
+- **Error Handling** - Improved error messages for transform-related issues
+- **CLI Architecture** - Restructured command parsing to support new transform options
+
+### Technical Details
+- **Default Transform Rules** - Ships with comprehensive set of rules for common compatibility issues:
+  - `pm.responseHeaders[...]` → `pm.response.headers.get(...)`
+  - Legacy `postman.*` calls → modern `pm.*` equivalents
+  - Header object property access fixes for Insomnia API
+  - Request manipulation method conversions
+- **Configurable Rules Engine** - JSON-based configuration system for custom transform rules
+- **Pattern Matching** - Robust regex engine with support for complex replacement patterns
+- **Rule Categories** - Organized into preprocessing (raw JSON) and postprocessing (converted scripts) stages
+
+
 ## [1.1.1] - 2025-07-01
 
 ### Fixed

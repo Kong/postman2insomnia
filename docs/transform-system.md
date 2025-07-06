@@ -144,22 +144,144 @@ Transform configurations are JSON files with two main sections:
 
 ## Built-in Configurations
 
-The converter includes several built-in configurations:
-
-### Default Configuration
-- **Location**: Used automatically when no config specified
-- **Contains**: Essential compatibility fixes for most use cases
-- **Recommended for**: Standard Postman collections
-
-### Minimal Configuration
-- **Location**: `src/configs/minimal-transforms.json`
-- **Contains**: Only critical fixes, minimal processing
-- **Recommended for**: Simple collections with modern syntax
-
-### Comprehensive Configuration
-- **Location**: `src/configs/comprehensive-transforms.json`
-- **Contains**: Extensive rules for edge cases and legacy syntax
-- **Recommended for**: Complex enterprise collections, legacy exports
+```json
+{
+  "_comment": "Transform Configuration - Generated from Default Rules",
+  "_description": "Customize preprocessing and postprocessing rules for Postman to Insomnia conversion",
+  "_documentation": {
+    "preprocess": "Rules applied before pm.* to insomnia.* conversion",
+    "postprocess": "Rules applied after pm.* to insomnia.* conversion",
+    "pattern": "Regular expression pattern to match (use double backslashes for escaping)",
+    "replacement": "Replacement string (use $1, $2, etc. for capture groups)",
+    "flags": "Regex flags: 'g' for global, 'i' for case-insensitive, 'm' for multiline",
+    "enabled": "Set to false to disable a rule without deleting it"
+  },
+  "preprocess": [
+    {
+      "name": "deprecated-pm-syntax",
+      "description": "Fix deprecated Postman responseHeaders syntax",
+      "pattern": "\\bpm\\.responseHeaders\\[(.*?)\\]",
+      "replacement": "pm.response.headers.get($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "old-postman-vars",
+      "description": "Convert old postman.getEnvironmentVariable calls",
+      "pattern": "\\bpostman\\.getEnvironmentVariable\\((.*?)\\)",
+      "replacement": "pm.environment.get($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "old-postman-global-vars",
+      "description": "Convert old postman.getGlobalVariable calls",
+      "pattern": "\\bpostman\\.getGlobalVariable\\((.*?)\\)",
+      "replacement": "pm.globals.get($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "legacy-test-syntax",
+      "description": "Convert legacy test syntax",
+      "pattern": "\\btests\\[(.*?)\\]\\s*=\\s*(.*?);",
+      "replacement": "pm.test($1, function() { pm.expect($2).to.be.true; });",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "legacy-environment-set",
+      "description": "Convert postman.setEnvironmentVariable to pm.environment.set",
+      "pattern": "\\bpostman\\.setEnvironmentVariable\\s*\\(\\s*(.+?)\\s*,\\s*(.+?)\\s*\\)",
+      "replacement": "pm.environment.set($1, $2)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "legacy-global-set",
+      "description": "Convert postman.setGlobalVariable to pm.globals.set",
+      "pattern": "\\bpostman\\.setGlobalVariable\\s*\\(\\s*(.+?)\\s*,\\s*(.+?)\\s*\\)",
+      "replacement": "pm.globals.set($1, $2)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "legacy-clear-env",
+      "description": "Convert postman.clearEnvironmentVariable to pm.environment.unset",
+      "pattern": "\\bpostman\\.clearEnvironmentVariable\\s*\\(\\s*(.+?)\\s*\\)",
+      "replacement": "pm.environment.unset($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "legacy-clear-global",
+      "description": "Convert postman.clearGlobalVariable to pm.globals.unset",
+      "pattern": "\\bpostman\\.clearGlobalVariable\\s*\\(\\s*(.+?)\\s*\\)",
+      "replacement": "pm.globals.unset($1)",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "responseCode-to-response",
+      "description": "Convert responseCode.code to pm.response.code",
+      "pattern": "\\bresponseCode\\.code",
+      "replacement": "pm.response.code",
+      "flags": "g",
+      "enabled": true
+    }
+  ],
+  "postprocess": [
+    {
+      "name": "fix-header-conditional-access",
+      "description": "Fix header access in conditional statements",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\s*&&\\s*insomnia\\.response\\.headers\\.get\\(\\1\\)\\.(?!value\\b)(\\w+)",
+      "replacement": "insomnia.response.headers.get($1) && insomnia.response.headers.get($1).value.$2",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-string-comparison",
+      "description": "Fix header string comparisons",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\s*(===|!==|==|!=)\\s*",
+      "replacement": "insomnia.response.headers.get($1).value $2 ",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-header-value-access",
+      "description": "Fix header value access for Insomnia API",
+      "pattern": "insomnia\\.response\\.headers\\.get\\(([^)]+)\\)\\.(?!value\\b)(\\w+)",
+      "replacement": "insomnia.response.headers.get($1).value.$2",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-request-headers-add",
+      "description": "Convert insomnia.request.headers.add() to insomnia.request.addHeader()",
+      "pattern": "insomnia\\.request\\.headers\\.add\\s*\\(\\s*\\{([\\s\\S]*?)\\}\\s*\\)\\s*;?",
+      "replacement": "insomnia.request.addHeader({$1});",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-request-url-assignment",
+      "description": "Convert insomnia.request.url assignment to update() method",
+      "pattern": "insomnia\\.request\\.url\\s*=\\s*([^;]+);?",
+      "replacement": "insomnia.request.url.update($1);",
+      "flags": "g",
+      "enabled": true
+    },
+    {
+      "name": "fix-response-json-access",
+      "description": "Fix response JSON access if needed",
+      "pattern": "insomnia\\.response\\.json\\(\\)\\.(?!data\\b)(\\w+)",
+      "replacement": "insomnia.response.json().$1",
+      "flags": "g",
+      "enabled": false
+    }
+  ]
+}
+```
 
 ## Common Transform Patterns
 
@@ -392,9 +514,7 @@ postman2insomnia collection.json --preprocess --postprocess --verbose
 - String escaping in patterns can be tricky
 
 ### Performance Impact
-- Complex rules slow down conversion
 - Many rules increase processing time
-- Large collections take longer with transforms
 
 ### Compatibility
 - Rules are specific to Postman/Insomnia API differences
@@ -407,7 +527,7 @@ postman2insomnia collection.json --preprocess --postprocess --verbose
 See [troubleshooting.md](troubleshooting.md) for solutions to common problems.
 
 ### Custom Rules
-- Study existing rules in `src/configs/`
+- Study existing rules in `../src/transform-engine.ts`
 - Test with small collections first
 - Use online regex testers for pattern development
 
