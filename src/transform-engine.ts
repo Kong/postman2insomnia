@@ -101,6 +101,54 @@ export const DEFAULT_PREPROCESS_RULES: TransformRule[] = [
     flags: "g",
     enabled: true
   },
+  {
+    name: "legacy-postman-test",
+    description: "Convert postman.test() to pm.test()",
+    pattern: "\\bpostman\\.test\\s*\\(",
+    replacement: "pm.test(",
+    flags: "g",
+    enabled: true
+  },
+  {
+    name: "legacy-postman-expect",
+    description: "Convert postman.expect() to pm.expect()",
+    pattern: "\\bpostman\\.expect\\s*\\(",
+    replacement: "pm.expect(",
+    flags: "g",
+    enabled: true
+  },
+  {
+    name: "legacy-postman-environment-set",
+    description: "Convert postman.environment.set() to pm.environment.set()",
+    pattern: "\\bpostman\\.environment\\.set\\s*\\(",
+    replacement: "pm.environment.set(",
+    flags: "g",
+    enabled: true
+  },
+  {
+    name: "legacy-postman-environment-get",
+    description: "Convert postman.environment.get() to pm.environment.get()",
+    pattern: "\\bpostman\\.environment\\.get\\s*\\(",
+    replacement: "pm.environment.get(",
+    flags: "g",
+    enabled: true
+  },
+  {
+    name: "legacy-postman-globals-set",
+    description: "Convert postman.globals.set() to pm.globals.set()",
+    pattern: "\\bpostman\\.globals\\.set\\s*\\(",
+    replacement: "pm.globals.set(",
+    flags: "g",
+    enabled: true
+  },
+  {
+    name: "legacy-postman-globals-get",
+    description: "Convert postman.globals.get() to pm.globals.get()",
+    pattern: "\\bpostman\\.globals\\.get\\s*\\(",
+    replacement: "pm.globals.get(",
+    flags: "g",
+    enabled: true
+  }
 ];
 
 // =============================================================================

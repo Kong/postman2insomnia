@@ -5,6 +5,25 @@ All notable changes to the Postman to Insomnia CLI converter will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2025-07-08
+
+### Added
+- **New Legacy Preprocessing Rules** - Extended support for additional deprecated Postman syntax patterns:
+  - `legacy-postman-test` - Converts `postman.test()` → `pm.test()`
+  - `legacy-postman-expect` - Converts `postman.expect()` → `pm.expect()`
+  - `legacy-postman-environment-set` - Converts `postman.environment.set()` → `pm.environment.set()`
+  - `legacy-postman-environment-get` - Converts `postman.environment.get()` → `pm.environment.get()`
+  - `legacy-postman-globals-set` - Converts `postman.globals.set()` → `pm.globals.set()`
+  - `legacy-postman-globals-get` - Converts `postman.globals.get()` → `pm.globals.get()`
+
+### Fixed
+- **Legacy Test Methods** - Support for older collections using `postman.test()` and `postman.expect()` syntax
+- **Legacy Environment/Global Methods** - Conversion of dot-notation `postman.environment.*` and `postman.globals.*` calls
+
+### Enhanced
+- **Preprocessing Coverage** - Expanded detection and conversion of legacy syntax patterns found in older Postman collections
+- **Unit Test Coverage** - Added comprehensive tests for all new legacy preprocessing rules
+
 ## [1.2.0] - 2025-07-06
 
 ### Added

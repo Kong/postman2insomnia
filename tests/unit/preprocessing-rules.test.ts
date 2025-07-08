@@ -476,4 +476,495 @@ describe('Default Preprocessing Rules', () => {
       });
     });
   });
+  describe('legacy-postman-test', () => {
+    test('✅ Should convert postman.test() to pm.test()', () => {
+      const testCases = [
+        [
+          'postman.test("Status check", () => { pm.expect(pm.response.code).to.equal(200); });',
+          'pm.test("Status check", () => { pm.expect(pm.response.code).to.equal(200); });'
+        ],
+        [
+          'postman.test("Response time", function() { pm.expect(pm.response.responseTime).to.be.below(1000); });',
+          'pm.test("Response time", function() { pm.expect(pm.response.responseTime).to.be.below(1000); });'
+        ],
+        [
+          'postman.test(`Dynamic test ${testName}`, () => { /* test code */ });',
+          'pm.test(`Dynamic test ${testName}`, () => { /* test code */ });'
+        ],
+        [
+          "postman.test('JSON response', () => { postman.expect(jsonData.id).to.exist; });",
+          "pm.test('JSON response', () => { pm.expect(jsonData.id).to.exist; });"
+        ]
+      ];
+
+      testCases.forEach(([input, expected]) => {
+        const result = engine.preprocess(input);
+        expect(result).toBe(expected);
+      });
+    });
+  });
+
+  test('✅ Should handle various whitespace patterns', () => {
+      const testCases = [
+        ['postman.test (  "test", callback)', 'pm.test(  "test", callback)'],
+        ['postman.test\t("test", callback)', 'pm.test("test", callback)'],
+        ['postman.test\n("test", callback)', 'pm.test("test", callback)']
+      ];
+
+      testCases.forEach(([input, expected]) => {
+        const result = engine.preprocess(input);
+        expect(result).toBe(expected);
+      });
+    });
+
+  test('✅ Should not match partial function names', () => {
+      const testCases = [
+        ['mypostman.test("test", callback)', 'mypostman.test("test", callback)'], // Should NOT change
+        ['customPostman.test("test", callback)', 'customPostman.test("test", callback)'], // Should NOT change
+        ['postmanHelper.test("test", callback)', 'postmanHelper.test("test", callback)'] // Should NOT change
+      ];
+
+      testCases.forEach(([input, expected]) => {
+        const result = engine.preprocess(input);
+        expect(result).toBe(expected);
+      });
+    });
+
+  test('✅ Should handle complex real-world example', () => {
+      const input = `
+postman.test("Application access token creation", () => {
+  const responseJson = pm.response.json();
+  postman.expect(responseJson.id_token).to.be.a('string');
+  postman.expect(responseJson.access_token);
+  console.log(responseJson.access_token);
+  postman.environment.set("POD-AAT", responseJson.access_token);
+});`;
+
+      const expected = `
+pm.test("Application access token creation", () => {
+  const responseJson = pm.response.json();
+  pm.expect(responseJson.id_token).to.be.a('string');
+  pm.expect(responseJson.access_token);
+  console.log(responseJson.access_token);
+  pm.environment.set("POD-AAT", responseJson.access_token);
+});`;
+
+      const result = engine.preprocess(input);
+      expect(result).toBe(expected);
+  });
+  describe('legacy-postman-expect', () => {
+    test('✅ Should convert postman.expect() to pm.expect()', () => {
+      const testCases = [
+        [
+          'postman.expect(response.status).to.equal(200);',
+          'pm.expect(response.status).to.equal(200);'
+        ],
+        [
+          'postman.expect(responseJson.data).to.be.an("array");',
+          'pm.expect(responseJson.data).to.be.an("array");'
+        ],
+        [
+          'postman.expect(responseJson.id_token).to.be.a("string");',
+          'pm.expect(responseJson.id_token).to.be.a("string");'
+        ],
+        [
+          'postman.expect(responseJson.access_token).to.exist;',
+          'pm.expect(responseJson.access_token).to.exist;'
+        ],
+        [
+          'postman.expect(pm.response.responseTime).to.be.below(1000);',
+          'pm.expect(pm.response.responseTime).to.be.below(1000);'
+        ]
+      ];
+
+      testCases.forEach(([input, expected]) => {
+        const result = engine.preprocess(input);
+        expect(result).toBe(expected);
+      });
+    });
+
+    test('✅ Should handle nested expectations', () => {
+      const testCases = [
+        [
+          'postman.expect(responseJson.data.length).to.be.greaterThan(0);',
+          'pm.expect(responseJson.data.length).to.be.greaterThan(0);'
+        ],
+        [
+          'postman.expect(responseJson.user.profile.email).to.include("@");',
+          'pm.expect(responseJson.user.profile.email).to.include("@");'
+        ]
+      ];
+
+      testCases.forEach(([input, expected]) => {
+        const result = engine.preprocess(input);
+        expect(result).toBe(expected);
+      });
+    });
+
+    test('✅ Should handle various whitespace patterns', () => {
+      const testCases = [
+        ['postman.expect (value).to.equal(expected)', 'pm.expect(value).to.equal(expected)'],
+        ['postman.expect\t(value).to.equal(expected)', 'pm.expect(value).to.equal(expected)'],
+        ['postman.expect\n(value).to.equal(expected)', 'pm.expect(value).to.equal(expected)']
+      ];
+
+      testCases.forEach(([input, expected]) => {
+        const result = engine.preprocess(input);
+        expect(result).toBe(expected);
+      });
+    });
+
+    test('✅ Should not match partial function names', () => {
+      const testCases = [
+        ['mypostman.expect(value)', 'mypostman.expect(value)'], // Should NOT change
+        ['customPostman.expect(value)', 'customPostman.expect(value)'], // Should NOT change
+        ['postmanHelper.expect(value)', 'postmanHelper.expect(value)'] // Should NOT change
+      ];
+
+      testCases.forEach(([input, expected]) => {
+        const result = engine.preprocess(input);
+        expect(result).toBe(expected);
+      });
+    });
+  });
+    describe('legacy-postman-environment-set', () => {
+    test('✅ Should convert postman.environment.set() to pm.environment.set()', () => {
+      const testCases = [
+        [
+          'postman.environment.set("token", responseJson.access_token);',
+          'pm.environment.set("token", responseJson.access_token);'
+        ],
+        [
+          'postman.environment.set("POD-AAT", responseJson.access_token);',
+          'pm.environment.set("POD-AAT", responseJson.access_token);'
+        ],
+        [
+          "postman.environment.set('userId', userData.id);",
+          "pm.environment.set('userId', userData.id);"
+        ],
+        [
+          'postman.environment.set(`sessionId_${userId}`, sessionData);',
+          'pm.environment.set(`sessionId_${userId}`, sessionData);'
+        ]
+      ];
+
+      testCases.forEach(([input, expected]) => {
+        const result = engine.preprocess(input);
+        expect(result).toBe(expected);
+      });
+    });
+
+    test('✅ Should handle complex expressions and concatenation', () => {
+      const testCases = [
+        [
+          'postman.environment.set("key_" + userId, tokenData.access);',
+          'pm.environment.set("key_" + userId, tokenData.access);'
+        ],
+        [
+          'postman.environment.set(config.tokenKey, response.data.token);',
+          'pm.environment.set(config.tokenKey, response.data.token);'
+        ],
+        [
+          'postman.environment.set(getKeyName("auth"), getTokenValue());',
+          'pm.environment.set(getKeyName("auth"), getTokenValue());'
+        ]
+      ];
+
+      testCases.forEach(([input, expected]) => {
+        const result = engine.preprocess(input);
+        expect(result).toBe(expected);
+      });
+    });
+
+    test('✅ Should handle various whitespace patterns', () => {
+      const testCases = [
+        ['postman.environment.set ("key", value)', 'pm.environment.set("key", value)'],
+        ['postman.environment.set\t("key", value)', 'pm.environment.set("key", value)'],
+        ['postman.environment.set\n("key", value)', 'pm.environment.set("key", value)']
+      ];
+
+      testCases.forEach(([input, expected]) => {
+        const result = engine.preprocess(input);
+        expect(result).toBe(expected);
+      });
+    });
+  });
+  describe('legacy-postman-environment-get', () => {
+    test('✅ Should convert postman.environment.get() to pm.environment.get()', () => {
+      const testCases = [
+        [
+          'const token = postman.environment.get("access_token");',
+          'const token = pm.environment.get("access_token");'
+        ],
+        [
+          'if (postman.environment.get("isAuthenticated")) { /* logic */ }',
+          'if (pm.environment.get("isAuthenticated")) { /* logic */ }'
+        ],
+        [
+          'const baseUrl = postman.environment.get("API_BASE_URL");',
+          'const baseUrl = pm.environment.get("API_BASE_URL");'
+        ],
+        [
+          'postman.environment.get(`key_${userId}`)',
+          'pm.environment.get(`key_${userId}`)'
+        ]
+      ];
+
+      testCases.forEach(([input, expected]) => {
+        const result = engine.preprocess(input);
+        expect(result).toBe(expected);
+      });
+    });
+
+    test('✅ Should handle complex expressions', () => {
+      const testCases = [
+        [
+          'const value = postman.environment.get(config.keyName);',
+          'const value = pm.environment.get(config.keyName);'
+        ],
+        [
+          'const token = postman.environment.get("prefix_" + env);',
+          'const token = pm.environment.get("prefix_" + env);'
+        ]
+      ];
+
+      testCases.forEach(([input, expected]) => {
+        const result = engine.preprocess(input);
+        expect(result).toBe(expected);
+      });
+    });
+  });
+
+  describe('legacy-postman-globals-set', () => {
+    test('✅ Should convert postman.globals.set() to pm.globals.set()', () => {
+      const testCases = [
+        [
+          'postman.globals.set("globalToken", responseJson.token);',
+          'pm.globals.set("globalToken", responseJson.token);'
+        ],
+        [
+          'postman.globals.set("baseApiUrl", "https://api.example.com");',
+          'pm.globals.set("baseApiUrl", "https://api.example.com");'
+        ],
+        [
+          "postman.globals.set('sessionId', sessionData.id);",
+          "pm.globals.set('sessionId', sessionData.id);"
+        ]
+      ];
+
+      testCases.forEach(([input, expected]) => {
+        const result = engine.preprocess(input);
+        expect(result).toBe(expected);
+      });
+    });
+
+    test('✅ Should handle complex expressions', () => {
+      const testCases = [
+        [
+          'postman.globals.set("session_" + userId, sessionToken);',
+          'pm.globals.set("session_" + userId, sessionToken);'
+        ],
+        [
+          'postman.globals.set(globalConfig.tokenKey, authResponse.token);',
+          'pm.globals.set(globalConfig.tokenKey, authResponse.token);'
+        ]
+      ];
+
+      testCases.forEach(([input, expected]) => {
+        const result = engine.preprocess(input);
+        expect(result).toBe(expected);
+      });
+    });
+  });
+  describe('Combined Legacy Rules Integration', () => {
+    test('✅ Should handle multiple legacy patterns in one script', () => {
+      const input = `
+postman.test("Complex legacy test", () => {
+  const responseJson = pm.response.json();
+  const globalToken = postman.globals.get("authToken");
+  const envUserId = postman.environment.get("userId");
+
+  postman.expect(responseJson.status).to.equal("success");
+  postman.expect(responseJson.data).to.be.an("object");
+
+  if (responseJson.newToken) {
+    postman.environment.set("currentToken", responseJson.newToken);
+    postman.globals.set("lastTokenUpdate", Date.now());
+  }
+});`;
+
+      const expected = `
+pm.test("Complex legacy test", () => {
+  const responseJson = pm.response.json();
+  const globalToken = pm.globals.get("authToken");
+  const envUserId = pm.environment.get("userId");
+
+  pm.expect(responseJson.status).to.equal("success");
+  pm.expect(responseJson.data).to.be.an("object");
+
+  if (responseJson.newToken) {
+    pm.environment.set("currentToken", responseJson.newToken);
+    pm.globals.set("lastTokenUpdate", Date.now());
+  }
+});`;
+
+      const result = engine.preprocess(input);
+      expect(result).toBe(expected);
+    });
+
+    test('✅ Should work with your original real-world example', () => {
+      const input = `postman.test("Application access token creation", () => {
+  const responseJson = pm.response.json();
+  postman.expect(responseJson.id_token).to.be.a('string');
+  postman.expect(responseJson.access_token);
+  console.log(responseJson.access_token);
+  postman.environment.set("POD-AAT", responseJson.access_token);
+});`;
+
+      const expected = `pm.test("Application access token creation", () => {
+  const responseJson = pm.response.json();
+  pm.expect(responseJson.id_token).to.be.a('string');
+  pm.expect(responseJson.access_token);
+  console.log(responseJson.access_token);
+  pm.environment.set("POD-AAT", responseJson.access_token);
+});`;
+
+      const result = engine.preprocess(input);
+      expect(result).toBe(expected);
+    });
+
+    test('✅ Should not interfere with existing modern pm.* syntax', () => {
+      const modernScript = `
+pm.test("Modern test", () => {
+  const responseJson = pm.response.json();
+  pm.expect(responseJson.status).to.equal("success");
+  pm.environment.set("token", responseJson.token);
+  pm.globals.get("baseUrl");
+});`;
+
+      const result = engine.preprocess(modernScript);
+      // Should remain unchanged since it's already modern syntax
+      expect(result).toBe(modernScript);
+    });
+  });
+    describe('Rule Configuration Validation', () => {
+    test('✅ Should have all new legacy rules in default config', () => {
+      const ruleNames = DEFAULT_PREPROCESS_RULES.map(rule => rule.name);
+
+      expect(ruleNames).toContain('legacy-postman-test');
+      expect(ruleNames).toContain('legacy-postman-expect');
+      expect(ruleNames).toContain('legacy-postman-environment-set');
+      expect(ruleNames).toContain('legacy-postman-environment-get');
+      expect(ruleNames).toContain('legacy-postman-globals-set');
+      expect(ruleNames).toContain('legacy-postman-globals-get');
+    });
+
+    test('✅ Should have all new rules enabled by default', () => {
+      const newRules = DEFAULT_PREPROCESS_RULES.filter(rule =>
+        [
+          'legacy-postman-test',
+          'legacy-postman-expect',
+          'legacy-postman-environment-set',
+          'legacy-postman-environment-get',
+          'legacy-postman-globals-set',
+          'legacy-postman-globals-get'
+        ].includes(rule.name)
+      );
+
+      newRules.forEach(rule => {
+        expect(rule.enabled).toBe(true);
+      });
+    });
+
+    test('✅ Should have word boundaries in patterns to prevent partial matches', () => {
+      const newRules = DEFAULT_PREPROCESS_RULES.filter(rule =>
+        [
+          'legacy-postman-test',
+          'legacy-postman-expect',
+          'legacy-postman-environment-set',
+          'legacy-postman-environment-get',
+          'legacy-postman-globals-set',
+          'legacy-postman-globals-get'
+        ].includes(rule.name)
+      );
+
+      newRules.forEach(rule => {
+        expect(rule.pattern).toMatch(/^\\b/); // Should start with word boundary
+      });
+    });
+  });
+  describe('Edge Cases and Boundary Conditions', () => {
+    test('✅ Should handle empty and whitespace-only strings', () => {
+      const testCases = ['', ' ', '\t', '\n', '   \t\n   '];
+
+      testCases.forEach(input => {
+        const result = engine.preprocess(input);
+        expect(result).toBe(input); // Should remain unchanged
+      });
+    });
+
+    test('✅ Should handle strings without any legacy patterns', () => {
+      const testCases = [
+        'console.log("Hello world");',
+        'const data = { key: "value" };',
+        'if (condition) { doSomething(); }',
+        'function myFunction() { return true; }'
+      ];
+
+      testCases.forEach(input => {
+        const result = engine.preprocess(input);
+        expect(result).toBe(input); // Should remain unchanged
+      });
+    });
+
+    test('✅ Should handle malformed legacy syntax gracefully', () => {
+      const testCases = [
+        'postman.test(', // Incomplete
+        'postman.expect)', // Missing opening paren
+        'postman.environment.set("key")', // Missing second parameter
+        'postman.globals.get()', // Missing parameter
+      ];
+
+      testCases.forEach(input => {
+        // Should not throw errors, even if conversion is imperfect
+        expect(() => engine.preprocess(input)).not.toThrow();
+      });
+    });
+  });
+  describe('Isolated Legacy Rule Testing', () => {
+  test('✅ Should be able to test individual rules in isolation', () => {
+    // Test just the legacy-postman-test rule by itself
+    const isolatedEngine = new TransformEngine({
+      preprocess: [DEFAULT_PREPROCESS_RULES.find(rule => rule.name === 'legacy-postman-test')!],
+      postprocess: []
+    });
+
+    const input = 'postman.test("test", callback); postman.expect(value);';
+    const result = isolatedEngine.preprocess(input);
+
+    // Should only convert postman.test, not postman.expect
+    expect(result).toBe('pm.test("test", callback); postman.expect(value);');
+  });
+
+  test('✅ Should be able to disable specific rules', () => {
+    // Create engine with legacy-postman-test disabled
+    const customRules = DEFAULT_PREPROCESS_RULES.map(rule =>
+      rule.name === 'legacy-postman-test'
+        ? { ...rule, enabled: false }
+        : rule
+    );
+
+    const customEngine = new TransformEngine({
+      preprocess: customRules,
+      postprocess: []
+    });
+
+    const input = 'postman.test("test", callback); postman.expect(value);';
+    const result = customEngine.preprocess(input);
+
+    // Should only convert postman.expect, not postman.test (disabled)
+    expect(result).toBe('postman.test("test", callback); pm.expect(value);');
+  });
+});
+//});
 });
