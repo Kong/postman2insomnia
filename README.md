@@ -1,6 +1,6 @@
 # Postman to Insomnia CLI Converter
 
-A powerful command-line tool that converts Postman collections and environments to Insomnia v5 YAML format with advanced script compatibility features. This tool was built by extracting and adapting the core conversion logic from Insomnia's UI codebase to create a standalone CLI utility.
+A powerful command-line tool that converts Postman collections and environments to Insomnia v5 YAML format with advanced script compatibility features and flexible folder organization. This tool was built by extracting and adapting the core conversion logic from Insomnia's UI codebase to create a standalone CLI utility.
 
 ## 🚀 Features
 
@@ -15,7 +15,15 @@ A powerful command-line tool that converts Postman collections and environments 
 - **Filters disabled variables** from environments
 - **Auto-detects file types** (collection vs environment)
 
-### 🔧 Transform System (New!)
+### 📁 Folder Structure Options (New!)
+- **Flexible folder organization** - Choose between two folder structures:
+  - **Original structure** (default): `Collection Name > Folders/Requests`
+  - **Nested structure**: `Collection Name > Collection Name > Folders/Requests`
+- **Insomnia UI compatibility** - Nested structure matches how Insomnia UI performs conversions
+- **Backward compatibility** - Default behavior preserved for existing workflows
+- **Future-ready** - Nested structure will become default in future major version
+
+### 🔧 Transform System
 - **Preprocessing transforms** - Fix deprecated Postman syntax before conversion
 - **Postprocessing transforms** - Fix Insomnia API differences after conversion
 - **Script compatibility engine** - Automatically resolves API differences between Postman and Insomnia
@@ -91,6 +99,26 @@ postman2insomnia collection.json -o ./converted-files
 postman2insomnia collection.json -v
 ```
 
+### 📁 Folder Structure Options
+
+```bash
+# Default structure: Collection Name > Folders/Requests
+postman2insomnia collection.json
+
+# Nested structure (matches Insomnia UI): Collection Name > Collection Name > Folders/Requests
+postman2insomnia collection.json --use-collection-folder
+
+# Example result with --use-collection-folder:
+# Consumer Finance (collection)
+# ├── Consumer Finance (root folder)
+# │   ├── Document (subfolder)
+# │   │   ├── Step 1. Get Access token
+# │   │   └── Step 2. Validate token
+# │   └── Token (subfolder)
+# │       ├── Kong - Generate token
+# │       └── Kong - PSD2
+```
+
 ### 🆕 Transform Usage
 
 ```bash
@@ -113,14 +141,17 @@ postman2insomnia --generate-config ./sample-config.json
 ### Advanced Options
 
 ```bash
-# Merge multiple collections with transforms
-postman2insomnia col1.json col2.json env.json -m --preprocess --postprocess
+# Nested structure with transforms
+postman2insomnia collection.json --use-collection-folder --preprocess --postprocess
 
-# Batch convert with custom transforms and verbose output
-postman2insomnia exports/*.json --preprocess --postprocess -o ./output -v
+# Merge multiple collections with nested structure
+postman2insomnia col1.json col2.json env.json -m --use-collection-folder
 
-# Use custom config for enterprise collections
-postman2insomnia enterprise/*.json --config-file ./enterprise-transforms.json -o ./converted
+# Batch convert with nested structure and custom transforms
+postman2insomnia exports/*.json --use-collection-folder --preprocess --postprocess -o ./output -v
+
+# Use custom config for enterprise collections with nested structure
+postman2insomnia enterprise/*.json --use-collection-folder --config-file ./enterprise-transforms.json -o ./converted
 ```
 
 ### Transform Configuration Management
@@ -143,6 +174,7 @@ postman2insomnia collection.json --config-file ./transforms.json
 | `--output <dir>` | `-o` | Output directory | `./output` |
 | `--merge` | `-m` | Merge all collections into a single file | `false` |
 | `--verbose` | `-v` | Verbose output | `false` |
+| `--use-collection-folder` | | Add collection name as containing folder | `false`* |
 | `--preprocess` | | Apply preprocessing transforms | `false` |
 | `--postprocess` | | Apply postprocessing transforms | `false` |
 | `--config-file <path>` | | Custom transform configuration file | |
@@ -150,7 +182,15 @@ postman2insomnia collection.json --config-file ./transforms.json
 | `--help` | `-h` | Show help | |
 | `--version` | `-V` | Show version | |
 
-## 🔍 When to Use Transforms
+*_**Note**: `--use-collection-folder` currently defaults to `false` for backward compatibility. In a future major version, this will become the default behavior to better match how Insomnia UI performs conversions._
+
+## 🔍 When to Use Options
+
+### Use `--use-collection-folder` when:
+- You want the converted structure to match Insomnia UI behavior
+- You prefer nested folder organization: `Collection > Collection > Items`
+- You're migrating from Insomnia UI imports to CLI workflow
+- You want better organization for complex collections
 
 ### Use `--preprocess` when:
 - Converting old Postman collections with deprecated syntax
@@ -164,9 +204,14 @@ postman2insomnia collection.json --config-file ./transforms.json
 - Header comparisons don't work as expected
 - Request manipulation methods fail
 
-### Use both (recommended):
+### Use both transforms (recommended):
 ```bash
 postman2insomnia collection.json --preprocess --postprocess
+```
+
+### Use nested structure with transforms (recommended for new projects):
+```bash
+postman2insomnia collection.json --use-collection-folder --preprocess --postprocess
 ```
 
 ## File Types Supported
@@ -184,13 +229,24 @@ postman2insomnia collection.json --preprocess --postprocess
 
 ## 📋 Examples
 
-### Convert a Collection with Script Fixes
+### Convert with Nested Structure (Recommended)
 
 ```bash
-# Input: my-api.json (Postman collection with scripts)
+# Input: my-api.json (Postman collection)
+postman2insomnia my-api.json --use-collection-folder --preprocess --postprocess
+
+# Output: ./output/my-api.insomnia.yaml (with nested structure and working scripts)
+# Structure: My API > My API > Folders/Requests
+```
+
+### Convert with Original Structure
+
+```bash
+# Input: my-api.json (Postman collection)
 postman2insomnia my-api.json --preprocess --postprocess
 
-# Output: ./output/my-api.insomnia.yaml (with working scripts)
+# Output: ./output/my-api.insomnia.yaml (with original structure and working scripts)
+# Structure: My API > Folders/Requests
 ```
 
 ### Convert Environments
@@ -204,17 +260,19 @@ postman2insomnia dev-env.json prod-env.json -o ./envs
 # ./envs/prod-env.insomnia.yaml
 ```
 
-### Batch Conversion with Custom Transforms
+### Batch Conversion with Nested Structure
 
 ```bash
-# Convert all exports with custom transform rules
+# Convert all exports with nested structure and custom transforms
 postman2insomnia postman-exports/*.json \
+  --use-collection-folder \
   --config-file ./my-transforms.json \
   -o ./converted \
   -v
 
-# Merge into single file with transforms
+# Merge into single file with nested structure
 postman2insomnia postman-exports/*.json \
+  --use-collection-folder \
   --preprocess --postprocess \
   --merge \
   -o ./merged
@@ -232,12 +290,40 @@ postman2insomnia config --generate ./company-transforms.json
 # 3. Validate configuration
 postman2insomnia config --validate ./company-transforms.json
 
-# 4. Convert with custom rules
+# 4. Convert with custom rules and nested structure
 postman2insomnia collections/*.json \
+  --use-collection-folder \
   --config-file ./company-transforms.json \
   -o ./insomnia-imports \
   --verbose
 ```
+
+## 🏗️ Folder Structure Comparison
+
+### Original Structure (Current Default)
+```
+Consumer Finance (collection)
+├── Document (subfolder)
+│   ├── Step 1. Get Access token
+│   └── Step 2. Validate token
+└── Token (subfolder)
+    ├── Kong - Generate token
+    └── Kong - PSD2
+```
+
+### Nested Structure (--use-collection-folder)
+```
+Consumer Finance (collection)
+├── Consumer Finance (root folder)
+│   ├── Document (subfolder)
+│   │   ├── Step 1. Get Access token
+│   │   └── Step 2. Validate token
+│   └── Token (subfolder)
+│       ├── Kong - Generate token
+│       └── Kong - PSD2
+```
+
+The nested structure matches how Insomnia UI performs conversions and provides better organization for complex collections.
 
 ## 🐛 Common Issues & Solutions
 
@@ -279,6 +365,22 @@ postman2insomnia collection.json --preprocess
 // ✅ Updated to modern syntax
 var token = pm.environment.get('auth_token');
 pm.test('Status is 200', function() { pm.expect(pm.response.code).to.equal(200); });
+```
+
+### Folder Structure Preferences
+
+**Problem**: Converted structure doesn't match Insomnia UI imports
+```
+// CLI default structure
+Collection Name > Folders/Requests
+
+// Insomnia UI structure  
+Collection Name > Collection Name > Folders/Requests
+```
+
+**Solution**: Use `--use-collection-folder` flag
+```bash
+postman2insomnia collection.json --use-collection-folder
 ```
 
 ## 📖 Advanced Transform Configuration
@@ -342,6 +444,7 @@ jobs:
       - name: Convert collections
         run: |
           postman2insomnia postman-exports/*.json \
+            --use-collection-folder \
             --preprocess --postprocess \
             --output ./insomnia-collections \
             --verbose
@@ -369,7 +472,9 @@ This CLI tool was built by extracting and adapting the core conversion logic fro
 
 4. **Enhanced with Transform System** to solve script compatibility issues
 
-5. **Maintained compatibility** with original Insomnia conversion logic
+5. **Added flexible folder structure options** to match different workflow preferences
+
+6. **Maintained compatibility** with original Insomnia conversion logic
 
 ## 🔧 Technical Details
 
@@ -401,6 +506,12 @@ This CLI tool was built by extracting and adapting the core conversion logic fro
 3. **v5 Format Only**: Outputs Insomnia v5 format (not v4 or older)
 4. **Node.js Required**: Requires Node.js runtime (not a standalone binary)
 5. **YAML Output**: Primarily generates YAML (JSON option exists but not fully implemented)
+
+## 🔮 Future Changes
+
+**Important**: In a future major version (v2.0.0), the `--use-collection-folder` behavior will become the default to better match how Insomnia UI performs conversions. This will be a breaking change, but the current behavior will remain available via a flag.
+
+**Migration Path**: Start using `--use-collection-folder` now to prepare for the future default behavior.
 
 ## 🤝 Contributing
 
@@ -439,5 +550,3 @@ This project adapts open-source code from the Insomnia project. Please refer to 
 ---
 
 **Built with ❤️ by adapting the excellent work of the Insomnia team**
-
-**Transform System**: Solving script compatibility issues so your converted collections just work! ✨

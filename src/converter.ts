@@ -47,6 +47,7 @@ export interface ConversionOptions {
   postprocess?: boolean;
   configFile?: string;
   transformEngine?: TransformEngine;
+  useCollectionFolder?: boolean;
 }
 
 export interface ConversionResult {
@@ -247,7 +248,7 @@ function convertPostmanCollectionWithTransforms(
     const collection = JSON.parse(rawData);
 
     // Use the existing converter logic but with enhanced script processing
-    const result = postmanConvert(rawData, transformEngine);
+    const result = postmanConvert(rawData, transformEngine, options?.useCollectionFolder);
 
     // The result from postmanConvert might be ConvertResult, but we need any[] | null
     // So we need to check if it's an array and handle other cases

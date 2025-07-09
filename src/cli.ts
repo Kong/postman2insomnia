@@ -58,6 +58,9 @@ interface CliOptions {
 
   /** Generate a sample transform configuration file */
   generateConfig?: string;
+
+  /** Add collection name as containing folder for all items */
+  useCollectionFolder?: boolean;
 }
 
 // =============================================================================
@@ -87,6 +90,9 @@ program
   .option('--postprocess', 'Apply postprocessing transforms to fix Insomnia API differences', false)
   .option('--config-file <path>', 'Path to custom transform configuration file')
   .option('--generate-config <path>', 'Generate a sample transform configuration file and exit')
+
+  // Might be needed for accurate conversions: Add the collection folder option
+  .option('--use-collection-folder', 'Add collection name as containing folder for all items', false)
 
   // Main action handler - this is where the actual work happens
   .action(async (inputs: string[], options: CliOptions) => {
@@ -149,7 +155,8 @@ program
         verbose: options.verbose,
         preprocess: options.preprocess,
         postprocess: options.postprocess,
-        configFile: options.configFile
+        configFile: options.configFile,
+        useCollectionFolder: options.useCollectionFolder
       });
 
       // =======================================================================
