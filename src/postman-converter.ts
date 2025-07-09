@@ -213,14 +213,19 @@ export class ImportPostman {
   collection: PostmanCollection;
   uuidGenerator: UUIDGenerator;
   transformEngine?: TransformEngine;
+  addCollectionFolder: boolean;
 
-  constructor(collection: PostmanCollection, rawData: string, transformEngine?: TransformEngine) {
+  constructor(
+    collection: PostmanCollection,
+    rawData: string,
+    transformEngine?: TransformEngine,
+    addCollectionFolder: boolean = false
+  ) {
     this.collection = collection;
     this.uuidGenerator = new UUIDGenerator(rawData);
     this.transformEngine = transformEngine;
+    this.addCollectionFolder = addCollectionFolder;
   }
-
-  // All existing methods remain the same, but script processing methods are enhanced...
 
   importVariable = (variables: Record<string, string>[]): Record<string, string> | null => {
     if (variables?.length === 0) {
@@ -392,7 +397,6 @@ export class ImportPostman {
       authentication,
     };
   };
-
   importCollection = (): ImportRequest[] => {
     const {
       item,
@@ -422,7 +426,26 @@ export class ImportPostman {
       collectionFolder.variable = postmanVariable;
     }
 
-    return [collectionFolder, ...this.importItems(item, collectionFolder._id!)];
+    if (this.addCollectionFolder) {
+      // NEW BEHAVIOR: Create intermediate folder with collection name
+      const intermediateFolder: ImportRequest = {
+        parentId: collectionFolder._id,
+        _id: this.uuidGenerator.generateGroupId(),
+        _type: 'request_group',
+        name, // Same name as collection
+        description: typeof description === 'string' ? description : '',
+        authentication: {}, // Empty auth for intermediate folder
+        preRequestScript: '',
+        afterResponseScript: '',
+      };
+
+      const importedItems = this.importItems(item, intermediateFolder._id!);
+      return [collectionFolder, intermediateFolder, ...importedItems];
+    } else {
+      // ORIGINAL BEHAVIOR: Direct children
+      const importedItems = this.importItems(item, collectionFolder._id!);
+      return [collectionFolder, ...importedItems];
+    }
   };
 
   importUrl = (url?: Url | string) => {
@@ -682,7 +705,7 @@ export class ImportPostman {
 // =============================================================================
 // ENHANCED MAIN CONVERTER EXPORT FUNCTION
 // =============================================================================
-export const convert: EntityConverter = (rawData: string, transformEngine?: TransformEngine) => {
+export const convert: EntityConverter = (rawData: string, transformEngine?: TransformEngine, addCollectionFolder?: boolean) => {
   try {
     const collection = JSON.parse(rawData) as PostmanCollection;
 
@@ -690,8 +713,13 @@ export const convert: EntityConverter = (rawData: string, transformEngine?: Tran
       POSTMAN_SCHEMA_URLS_V2_0.includes(collection.info.schema) ||
       POSTMAN_SCHEMA_URLS_V2_1.includes(collection.info.schema)
     ) {
-      // Pass transform engine to ImportPostman constructor
-      const list = new ImportPostman(collection, rawData, transformEngine).importCollection();
+      // Pass the addCollectionFolder option to ImportPostman
+      const list = new ImportPostman(
+        collection,
+        rawData,
+        transformEngine,
+        addCollectionFolder || false // Add this parameter
+      ).importCollection();
 
       const now = Date.now();
       const ordered = list.map((item, index) => ({

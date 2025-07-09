@@ -303,9 +303,15 @@ type ConvertResult = ImportRequest[] | ConvertErrorResult | null;
  * All format-specific converters (Postman, environments, etc.) implement this interface
  *
  * @param rawData Raw string content from the input file
+ * @param transformEngine Optional transform engine for preprocessing/postprocessing
+ * @param useCollectionFolder Optional flag to add collection name as containing folder
  * @returns Conversion result or error
  */
-export type Converter = (rawData: string, transformEngine?: any) => ConvertResult | Promise<ConvertResult>;
+export type Converter = (
+  rawData: string,
+  transformEngine?: any,
+  useCollectionFolder?: boolean
+) => ConvertResult | Promise<ConvertResult>;
 
 /**
  * Import entry metadata

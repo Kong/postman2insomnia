@@ -5,6 +5,42 @@ All notable changes to the Postman to Insomnia CLI converter will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-07-09
+
+### Added
+- **Collection Folder Structure Option** - New `--use-collection-folder` flag to add collection name as containing folder
+  - Creates nested structure: `Collection Name > Collection Name > Folders/Requests`
+  - Matches Insomnia UI conversion behavior more closely
+  - Optional flag with backward compatibility (defaults to `false`)
+  - Will become default behavior in future version for UI consistency
+
+### Enhanced
+- **Flexible Folder Organization** - Users can now choose between:
+  - Original structure (default): `Collection Name > Folders/Requests`
+  - Nested structure (new): `Collection Name > Collection Name > Folders/Requests`
+- **Type Safety** - Updated `Converter` interface to support new optional parameter
+- **CLI Documentation** - Added help text and examples for new folder structure option
+
+### Technical Details
+- Extended `ImportPostman` class with optional `addCollectionFolder` parameter
+- Updated conversion pipeline to support both folder structure modes
+- Maintained full backward compatibility with existing conversions
+- Added comprehensive unit tests for both structure modes
+
+### Usage Examples
+```bash
+# Default behavior (original structure)
+postman2insomnia collection.json
+
+# New nested structure (matches Insomnia UI)
+postman2insomnia collection.json --use-collection-folder
+
+# Combined with other options
+postman2insomnia collection.json --use-collection-folder --preprocess --postprocess
+```
+
+**Note**: The default behavior remains unchanged for backward compatibility. In a future major version, `--use-collection-folder` will become the default to better match Insomnia UI behavior.
+
 ## [1.3.0] - 2025-07-09
 
 - **Fix ordering issue** - corrected how the CLI generates the keys for sorting requests
