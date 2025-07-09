@@ -353,6 +353,8 @@ function convertToInsomniaV5Format(resources: any[], collectionName: string) {
 function convertResourcesToInsomniaV5Collection(resources: any[], parentId: string): any[] {
   const collection: any[] = [];
   const childResources = resources.filter(r => r.parentId === parentId);
+  const now = Date.now();
+  let sortKeyCounter = -now;
 
   for (const resource of childResources) {
     if (resource._type === 'request') {
@@ -400,7 +402,7 @@ function convertResourcesToInsomniaV5Collection(resources: any[], parentId: stri
           modified: Date.now(),
           isPrivate: false,
           description: resource.description || '',
-          sortKey: Date.now()
+          sortKey: sortKeyCounter++
         },
 
         children: undefined
@@ -431,7 +433,7 @@ function convertResourcesToInsomniaV5Collection(resources: any[], parentId: stri
           modified: Date.now(),
           isPrivate: false,
           description: resource.description || '',
-          sortKey: Date.now()
+          sortKey: sortKeyCounter++
         },
 
         children: convertResourcesToInsomniaV5Collection(resources, resource._id),
