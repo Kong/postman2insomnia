@@ -966,5 +966,200 @@ pm.test("Modern test", () => {
     expect(result).toBe('postman.test("test", callback); pm.expect(value);');
   });
 });
-//});
+
+describe('legacy-set-next-request', () => {
+  test('✅ Should convert postman.setNextRequest() to pm.execution.setNextRequest()', () => {
+    const testCases = [
+      // Basic string literals
+      [
+        'postman.setNextRequest("Step 1. Get Access token");',
+        'pm.execution.setNextRequest("Step 1. Get Access token");'
+      ],
+      [
+        "postman.setNextRequest('Next API Call');",
+        "pm.execution.setNextRequest('Next API Call');"
+      ],
+      // Template literals
+      [
+        'postman.setNextRequest(`Dynamic Step ${stepNumber}`);',
+        'pm.execution.setNextRequest(`Dynamic Step ${stepNumber}`);'
+      ],
+      // Variable references
+      [
+        'postman.setNextRequest(nextStepName);',
+        'pm.execution.setNextRequest(nextStepName);'
+      ],
+      // Object property access
+      [
+        'postman.setNextRequest(config.nextStep);',
+        'pm.execution.setNextRequest(config.nextStep);'
+      ],
+      // Function calls as parameters
+      [
+        'postman.setNextRequest(getNextRequestName());',
+        'pm.execution.setNextRequest(getNextRequestName());'
+      ],
+      // Complex expressions
+      [
+        'postman.setNextRequest(shouldSkip ? null : "Next Step");',
+        'pm.execution.setNextRequest(shouldSkip ? null : "Next Step");'
+      ],
+      // Setting to null (to stop execution)
+      [
+        'postman.setNextRequest(null);',
+        'pm.execution.setNextRequest(null);'
+      ]
+    ];
+
+    testCases.forEach(([input, expected]) => {
+      const result = engine.preprocess(input);
+      expect(result).toBe(expected);
+    });
+  });
+
+  test('✅ Should handle various whitespace patterns', () => {
+    const testCases = [
+      // Extra spaces
+      [
+        'postman.setNextRequest(  "Step Name"  );',
+        'pm.execution.setNextRequest("Step Name");'
+      ],
+      // Tabs
+      [
+        'postman.setNextRequest(\t"Step Name"\t);',
+        'pm.execution.setNextRequest("Step Name");'
+      ],
+      // Multiple lines (though not common)
+      [
+        'postman.setNextRequest(\n  "Step Name"\n);',
+        'pm.execution.setNextRequest("Step Name");'
+      ]
+    ];
+
+    testCases.forEach(([input, expected]) => {
+      const result = engine.preprocess(input);
+      expect(result).toBe(expected);
+    });
+  });
+
+  test('✅ Should handle conditional workflow patterns', () => {
+    const testCases = [
+      [
+        `if (pm.response.code === 200) {
+    postman.setNextRequest("Success Step");
+} else {
+    postman.setNextRequest("Error Handler");
+}`,
+        `if (pm.response.code === 200) {
+    pm.execution.setNextRequest("Success Step");
+} else {
+    pm.execution.setNextRequest("Error Handler");
+}`
+      ],
+      [
+        `const nextStep = responseData.hasMore ? "Fetch More Data" : null;
+postman.setNextRequest(nextStep);`,
+        `const nextStep = responseData.hasMore ? "Fetch More Data" : null;
+pm.execution.setNextRequest(nextStep);`
+      ]
+    ];
+
+    testCases.forEach(([input, expected]) => {
+      const result = engine.preprocess(input);
+      expect(result).toBe(expected);
+    });
+  });
+
+  test('✅ Should not affect other postman method calls', () => {
+    const testCases = [
+      // Should not change other postman calls that don't match
+      [
+        'postman.setEnvironmentVariable("key", "value");',
+        'pm.environment.set("key", "value");' // This gets converted by a different rule
+      ],
+      [
+        'customObject.setNextRequest("not postman");',
+        'customObject.setNextRequest("not postman");' // Should not change
+      ],
+      [
+        'postmanLike.setNextRequest("not exact match");',
+        'postmanLike.setNextRequest("not exact match");' // Should not change
+      ]
+    ];
+
+    testCases.forEach(([input, expected]) => {
+      const result = engine.preprocess(input);
+      expect(result).toBe(expected);
+    });
+  });
+
+  test('✅ Should handle multiple setNextRequest calls in one script', () => {
+    const input = `
+// Workflow logic with multiple paths
+if (authenticationNeeded) {
+    postman.setNextRequest("Get Auth Token");
+} else if (dataValidationFailed) {
+    postman.setNextRequest("Validate Data");
+} else {
+    postman.setNextRequest("Process Main Request");
+}
+
+// Later in script
+if (isLastStep) {
+    postman.setNextRequest(null); // Stop execution
+}`;
+
+    const expected = `
+// Workflow logic with multiple paths
+if (authenticationNeeded) {
+    pm.execution.setNextRequest("Get Auth Token");
+} else if (dataValidationFailed) {
+    pm.execution.setNextRequest("Validate Data");
+} else {
+    pm.execution.setNextRequest("Process Main Request");
+}
+
+// Later in script
+if (isLastStep) {
+    pm.execution.setNextRequest(null); // Stop execution
+}`;
+
+    const result = engine.preprocess(input);
+    expect(result).toBe(expected);
+  });
+
+  test('✅ Should integrate with other legacy rule conversions', () => {
+    const input = `
+postman.test("Workflow control test", () => {
+    const responseJson = pm.response.json();
+    postman.expect(responseJson.status).to.equal("success");
+
+    if (responseJson.continueWorkflow) {
+        postman.setNextRequest("Step 2. Process Data");
+        postman.environment.set("workflowState", "continuing");
+    } else {
+        postman.setNextRequest(null);
+        postman.environment.set("workflowState", "completed");
+    }
+});`;
+
+    const expected = `
+pm.test("Workflow control test", () => {
+    const responseJson = pm.response.json();
+    pm.expect(responseJson.status).to.equal("success");
+
+    if (responseJson.continueWorkflow) {
+        pm.execution.setNextRequest("Step 2. Process Data");
+        pm.environment.set("workflowState", "continuing");
+    } else {
+        pm.execution.setNextRequest(null);
+        pm.environment.set("workflowState", "completed");
+    }
+});`;
+
+    const result = engine.preprocess(input);
+    expect(result).toBe(expected);
+  });
+});
+
 });

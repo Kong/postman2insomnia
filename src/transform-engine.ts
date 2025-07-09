@@ -148,18 +148,19 @@ export const DEFAULT_PREPROCESS_RULES: TransformRule[] = [
     replacement: "pm.globals.get(",
     flags: "g",
     enabled: true
+  },
+  {
+    name: "legacy-set-next-request",
+    description: "Convert postman.setNextRequest to pm.execution.setNextRequest",
+    pattern: "\\bpostman\\.setNextRequest\\s*\\(\\s*(.+?)\\s*\\)",
+    replacement: "pm.execution.setNextRequest($1)",
+    flags: "g",
+    enabled: true
   }
 ];
 
 // =============================================================================
-// Safe TRANSFORM RULES
-// =============================================================================
-export const TIER_1_PREPROCESSING_RULES: TransformRule[] = [
-
-];
-
-// =============================================================================
-// UPDATED DEFAULT POSTPROCESS RULES - ADD HEADER FIX
+// DEFAULT POSTPROCESS RULES - ADD HEADER FIX
 // =============================================================================
 export const DEFAULT_POSTPROCESS_RULES: TransformRule[] = [
   {

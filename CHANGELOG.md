@@ -5,6 +5,20 @@ All notable changes to the Postman to Insomnia CLI converter will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2025-07-09
+
+### Added
+- **Legacy Workflow Control Rule** - Added support for deprecated Postman workflow control syntax:
+  - `legacy-set-next-request` - Converts `postman.setNextRequest()` → `pm.execution.setNextRequest()`
+
+### Fixed
+- **Workflow Execution Issues** - Resolves conversion problems with legacy collections using `postman.setNextRequest("Step Name")` syntax
+- **Request Chain Compatibility** - Ensures proper conversion of workflow control logic for sequential request execution
+
+### Enhanced
+- **Preprocessing Coverage** - Extended legacy syntax detection to include workflow control methods
+- **Unit Test Coverage** - Added comprehensive tests for the new `legacy-set-next-request` preprocessing rule
+
 ## [1.2.1] - 2025-07-08
 
 ### Added
