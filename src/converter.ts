@@ -48,6 +48,7 @@ export interface ConversionOptions {
   configFile?: string;
   transformEngine?: TransformEngine;
   useCollectionFolder?: boolean;
+  experimental?: boolean;
 }
 
 export interface ConversionResult {
@@ -168,7 +169,7 @@ export async function convertPostmanToInsomnia(
         if (options.verbose) {
           console.log(chalk.gray(`  Applying preprocessing transforms...`));
         }
-        rawData = transformEngine.preprocess(rawData);
+        rawData = transformEngine.preprocess(rawData, options.experimental || false);
       }
 
       const parsed = JSON.parse(rawData);
@@ -246,8 +247,6 @@ function convertPostmanCollectionWithTransforms(
 ): any[] | null {
   try {
     const collection = JSON.parse(rawData);
-
-    // Use the existing converter logic but with enhanced script processing
     const result = postmanConvert(rawData, transformEngine, options?.useCollectionFolder);
 
     // The result from postmanConvert might be ConvertResult, but we need any[] | null
@@ -261,14 +260,19 @@ function convertPostmanCollectionWithTransforms(
 
         result.forEach(item => {
           if (item.preRequestScript) {
-            item.preRequestScript = transformEngine.postprocess(item.preRequestScript);
+            item.preRequestScript = transformEngine.postprocess(
+              item.preRequestScript,
+              options.experimental || false
+            );
           }
           if (item.afterResponseScript) {
-            item.afterResponseScript = transformEngine.postprocess(item.afterResponseScript);
+            item.afterResponseScript = transformEngine.postprocess(
+              item.afterResponseScript,
+              options.experimental || false
+            );
           }
         });
       }
-
       return result;
     } else {
       // If result is not an array (e.g., null or ConvertErrorResult), return null

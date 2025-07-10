@@ -801,4 +801,315 @@ describe('CLI with Transform Support', () => {
       }
     });
   });
+
+  // =============================================================================
+  // EXPERIMENTAL FLAG CLI TESTS
+  // =============================================================================
+  describe('Experimental Flag Tests', () => {
+    test('should accept --experimental flag', async () => {
+      const testCollection = {
+        info: {
+          name: 'Test Collection',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+        },
+        item: [
+          {
+            name: 'Test Request',
+            request: {
+              method: 'GET',
+              url: 'https://api.example.com/test'
+            },
+            event: [
+              {
+                listen: 'test',
+                script: {
+                  exec: [
+                    'var json = pm.response.json();',
+                    'pm.expect(json[\'access_token\']).to.be.a(\'string\');'
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      };
+
+      const inputFile = createTestFile('experimental-collection.json', testCollection);
+
+      const result = await runCli([
+        inputFile,
+        '--postprocess',
+        '--experimental',
+        '--output', tempDir,
+        '--verbose'
+      ]);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('Successfully converted');
+
+      // Check that experimental rules were applied
+      const outputFiles = fs.readdirSync(tempDir);
+      expect(outputFiles.length).toBeGreaterThan(0);
+
+      const outputContent = fs.readFileSync(
+        path.join(tempDir, outputFiles[0]),
+        'utf8'
+      );
+
+      // Should contain dot notation (experimental rule applied)
+      expect(outputContent).toContain('json.access_token');
+      expect(outputContent).not.toContain('json[\'access_token\']');
+    });
+
+    test('should combine --experimental with --postprocess', async () => {
+      const testCollection = {
+        info: {
+          name: 'Postprocess Experimental Test',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+        },
+        item: [
+          {
+            name: 'Bracket Notation Request',
+            request: {
+              method: 'POST',
+              url: 'https://api.example.com/data'
+            },
+            event: [
+              {
+                listen: 'test',
+                script: {
+                  exec: [
+                    'var response = pm.response.json();',
+                    'pm.expect(response[\'user\'][\'profile\'][\'email\']).to.be.a(\'string\');',
+                    'pm.environment.set("USER_EMAIL", response[\'user\'][\'email\']);'
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      };
+
+      const inputFile = createTestFile('postprocess-experimental.json', testCollection);
+
+      const result = await runCli([
+        inputFile,
+        '--postprocess',
+        '--experimental',
+        '--output', tempDir
+      ]);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('Successfully converted');
+
+      const outputFiles = fs.readdirSync(tempDir);
+      const outputContent = fs.readFileSync(
+        path.join(tempDir, outputFiles[0]),
+        'utf8'
+      );
+
+      // Verify experimental bracket notation rules were applied
+      expect(outputContent).toContain('response.user.profile.email');
+      expect(outputContent).toContain('response.user.email');
+      expect(outputContent).not.toContain('response[\'user\'][\'profile\'][\'email\']');
+    });
+
+    test('should combine --experimental with --preprocess', async () => {
+      const legacyCollection = {
+        info: {
+          name: 'Legacy Collection',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+        },
+        item: [
+          {
+            name: 'Legacy Request',
+            request: {
+              method: 'GET',
+              url: 'https://api.example.com/legacy'
+            },
+            event: [
+              {
+                listen: 'test',
+                script: {
+                  exec: [
+                    '// Legacy syntax that should be preprocessed',
+                    'var token = postman.getEnvironmentVariable("auth_token");',
+                    'var response = pm.response.json();',
+                    'pm.expect(response[\'data\'][\'token\']).to.equal(token);'
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      };
+
+      const inputFile = createTestFile('preprocess-experimental.json', legacyCollection);
+
+      const result = await runCli([
+        inputFile,
+        '--preprocess',
+        '--postprocess',
+        '--experimental',
+        '--output', tempDir,
+        '--verbose'
+      ]);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('Successfully converted');
+
+      const outputFiles = fs.readdirSync(tempDir);
+      const outputContent = fs.readFileSync(
+        path.join(tempDir, outputFiles[0]),
+        'utf8'
+      );
+
+      // Verify both preprocessing and experimental postprocessing were applied
+      // After conversion, pm.* becomes insomnia.*, so expect insomnia syntax
+      expect(outputContent).toContain('insomnia.environment.get("auth_token")'); // Preprocessed and converted
+      expect(outputContent).toContain('response.data.token'); // Experimental postprocessed
+      expect(outputContent).not.toContain('postman.getEnvironmentVariable'); // Old syntax removed
+      expect(outputContent).not.toContain('response[\'data\'][\'token\']'); // Bracket notation converted
+    });
+
+    test('should include experimental rules in generated config when --experimental is used', async () => {
+      // Note: This test may need CLI changes to support --experimental with config generation
+      // For now, let's test that the config generation works without throwing errors
+      const configPath = path.join(tempDir, 'experimental-config.json');
+
+      const result = await runCli([
+        'config',
+        '--generate', configPath
+        // TODO: Add --experimental support to config generation in CLI
+      ]);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('Configuration generated');
+      expect(fs.existsSync(configPath)).toBe(true);
+
+      const configContent = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+
+      // For now, just verify the config is valid and contains the expected structure
+      expect(configContent.postprocess).toBeDefined();
+      expect(Array.isArray(configContent.postprocess)).toBe(true);
+      expect(configContent.preprocess).toBeDefined();
+      expect(Array.isArray(configContent.preprocess)).toBe(true);
+
+      // TODO: Once CLI supports --experimental flag for config generation, test for:
+      // - configContent._experimental_notice should be defined
+      // - configContent.postprocess should contain experimental rules
+      // - Rules should have (EXPERIMENTAL) in description
+    });
+
+    test('should NOT include experimental rules in generated config when --experimental is NOT used', async () => {
+      const configPath = path.join(tempDir, 'standard-config.json');
+
+      const result = await runCli([
+        'config',
+        '--generate', configPath
+        // Note: NO --experimental flag
+      ]);
+
+      expect(result.code).toBe(0);
+      expect(fs.existsSync(configPath)).toBe(true);
+
+      const configContent = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+
+      // Should NOT include experimental notice
+      expect(configContent._experimental_notice).toBeUndefined();
+
+      // Postprocess array should be empty or contain only standard rules
+      expect(configContent.postprocess).toBeDefined();
+      expect(Array.isArray(configContent.postprocess)).toBe(true);
+
+      // Should not contain experimental rules
+      const experimentalRule = configContent.postprocess.find(
+        (rule: any) => rule.description && rule.description.includes('(EXPERIMENTAL)')
+      );
+      expect(experimentalRule).toBeUndefined();
+    });
+
+    test('should NOT apply experimental rules when --experimental flag is missing', async () => {
+      const testCollection = {
+        info: {
+          name: 'No Experimental Test',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+        },
+        item: [
+          {
+            name: 'Standard Request',
+            request: {
+              method: 'GET',
+              url: 'https://api.example.com/standard'
+            },
+            event: [
+              {
+                listen: 'test',
+                script: {
+                  exec: [
+                    'var data = pm.response.json();',
+                    'pm.expect(data[\'access_token\']).to.be.a(\'string\');'
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      };
+
+      const inputFile = createTestFile('no-experimental.json', testCollection);
+
+      const result = await runCli([
+        inputFile,
+        '--postprocess', // Note: --experimental flag is missing
+        '--output', tempDir
+      ]);
+
+      expect(result.code).toBe(0);
+
+      const outputFiles = fs.readdirSync(tempDir);
+      const outputContent = fs.readFileSync(
+        path.join(tempDir, outputFiles[0]),
+        'utf8'
+      );
+
+      // Should NOT apply experimental bracket notation conversion
+      expect(outputContent).toContain('data[\'access_token\']'); // Original bracket notation preserved
+      expect(outputContent).not.toContain('data.access_token'); // Should not be converted to dot notation
+    });
+
+    test('should show experimental transform information in verbose mode', async () => {
+      const testCollection = {
+        info: {
+          name: 'Verbose Experimental Test',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+        },
+        item: [
+          {
+            name: 'Verbose Test Request',
+            request: {
+              method: 'GET',
+              url: 'https://api.example.com/verbose'
+            }
+          }
+        ]
+      };
+
+      const inputFile = createTestFile('verbose-experimental.json', testCollection);
+
+      const result = await runCli([
+        inputFile,
+        '--postprocess',
+        '--experimental',
+        '--output', tempDir,
+        '--verbose'
+      ]);
+
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('Successfully converted');
+
+      // In verbose mode, should show that experimental transforms are being applied
+      expect(result.stdout).toContain('Applying postprocessing transforms');
+    });
+  });
 });

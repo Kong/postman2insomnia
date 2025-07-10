@@ -61,6 +61,9 @@ interface CliOptions {
 
   /** Add collection name as containing folder for all items */
   useCollectionFolder?: boolean;
+
+  /** Add flga to use experimental rules */
+  experimental?: boolean;
 }
 
 // =============================================================================
@@ -93,6 +96,9 @@ program
 
   // Might be needed for accurate conversions: Add the collection folder option
   .option('--use-collection-folder', 'Add collection name as containing folder for all items', false)
+
+  // Apply experimental rules
+  .option('--experimental', 'Enable experimental transform rules (not confirmed by Insomnia team)', false)
 
   // Main action handler - this is where the actual work happens
   .action(async (inputs: string[], options: CliOptions) => {
@@ -156,7 +162,8 @@ program
         preprocess: options.preprocess,
         postprocess: options.postprocess,
         configFile: options.configFile,
-        useCollectionFolder: options.useCollectionFolder
+        useCollectionFolder: options.useCollectionFolder,
+        experimental: options.experimental
       });
 
       // =======================================================================

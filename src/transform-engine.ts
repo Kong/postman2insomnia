@@ -26,6 +26,32 @@ export interface TransformConfig {
 }
 
 // =============================================================================
+// EXPERIMENTAL TRANSFORM RULES
+// =============================================================================
+export const EXPERIMENTAL_PREPROCESS_RULES: TransformRule[] = [
+  // Empty for now - add experimental preprocessing rules here when needed
+];
+
+export const EXPERIMENTAL_POSTPROCESS_RULES: TransformRule[] = [
+  {
+    name: "fix-bracket-notation-access",
+    description: "Convert bracket notation to dot notation for any variable (e.g., json['key'] → json.key)",
+    pattern: "([a-zA-Z_$][a-zA-Z0-9_$.]*)\\['([^']+)'\\]",
+    replacement: "$1.$2",
+    flags: "g",
+    enabled: true
+  },
+  {
+    name: "fix-double-bracket-access",
+    description: "Convert double bracket notation to dot notation for any variable",
+    pattern: "([a-zA-Z_$][a-zA-Z0-9_$.]*)\\[\"([^\"]+)\"\\]",
+    replacement: "$1.$2",
+    flags: "g",
+    enabled: true
+  }
+];
+
+// =============================================================================
 // DEFAULT TRANSFORM RULES
 // =============================================================================
 export const DEFAULT_PREPROCESS_RULES: TransformRule[] = [
@@ -235,45 +261,63 @@ export class TransformEngine {
   /**
    * Apply preprocessing transformations to raw Postman JSON
    */
-  preprocess(postmanJson: string): string {
+  preprocess(postmanJson: string, includeExperimental: boolean = false): string {
     if (!this.config.preprocess?.length) {
       return postmanJson;
     }
 
     let transformed = postmanJson;
+    const rules = includeExperimental
+      ? [...this.config.preprocess, ...EXPERIMENTAL_PREPROCESS_RULES]
+      : this.config.preprocess;
 
-    for (const rule of this.config.preprocess) {
-      if (!rule.enabled) continue;
+      for (const rule of rules) {
+        if (!rule.enabled) continue;
 
-      try {
-        const regex = new RegExp(rule.pattern, rule.flags || 'g');
-        transformed = transformed.replace(regex, rule.replacement);
-      } catch (error) {
-        console.warn(`Failed to apply preprocess rule "${rule.name}":`, error);
+        try {
+          const regex = new RegExp(rule.pattern, rule.flags || 'g');
+          transformed = transformed.replace(regex, rule.replacement);
+        } catch (error) {
+          console.warn(`Failed to apply preprocess rule "${rule.name}":`, error);
+        }
       }
-    }
 
-    return transformed;
+      return transformed;
   }
 
   /**
    * Apply postprocessing transformations to converted scripts
    */
-  postprocess(scriptContent: string): string {
-    if (!this.config.postprocess?.length) {
+  postprocess(scriptContent: string, includeExperimental: boolean = false): string {
+    if (!this.config.postprocess?.length && !includeExperimental) {
       return scriptContent;
     }
 
     let transformed = scriptContent;
 
-    for (const rule of this.config.postprocess) {
-      if (!rule.enabled) continue;
+    // Combine standard rules with experimental rules if flag is set
+    const rules = includeExperimental
+      ? [...this.config.postprocess, ...EXPERIMENTAL_POSTPROCESS_RULES]
+      : this.config.postprocess;
 
-      try {
-        const regex = new RegExp(rule.pattern, rule.flags || 'g');
-        transformed = transformed.replace(regex, rule.replacement);
-      } catch (error) {
-        console.warn(`Failed to apply postprocess rule "${rule.name}":`, error);
+    // Apply rules with multiple passes for nested bracket notation
+    let previousResult = '';
+    let passCount = 0;
+    const maxPasses = 10; // Prevent infinite loops
+
+    while (transformed !== previousResult && passCount < maxPasses) {
+      previousResult = transformed;
+      passCount++;
+
+      for (const rule of rules) {
+        if (!rule.enabled) continue;
+
+        try {
+          const regex = new RegExp(rule.pattern, rule.flags || 'g');
+          transformed = transformed.replace(regex, rule.replacement);
+        } catch (error) {
+          console.warn(`Failed to apply postprocess rule "${rule.name}":`, error);
+        }
       }
     }
 
@@ -374,27 +418,25 @@ export interface ConversionOptionsWithTransforms {
 // =============================================================================
 // SAMPLE CONFIG FILE GENERATION
 // =============================================================================
-export function generateSampleConfig(outputPath: string): void {
-  // Generate config based on actual default rules
-  const sampleConfig: TransformConfig = {
+export function generateSampleConfig(outputPath: string, includeExperimental: boolean = false): void {
+  const sampleConfig = {
     preprocess: DEFAULT_PREPROCESS_RULES,
     postprocess: DEFAULT_POSTPROCESS_RULES
   };
 
-  // Create properly formatted JSON with comments
-  const configWithComments = {
+  const configWithComments: any = {
     "_comment": "Transform Configuration - Generated from Default Rules",
     "_description": "Customize preprocessing and postprocessing rules for Postman to Insomnia conversion",
     "_documentation": {
       "preprocess": "Rules applied before pm.* to insomnia.* conversion",
       "postprocess": "Rules applied after pm.* to insomnia.* conversion",
-      "pattern": "Regular expression pattern to match (single backslash escaping)",
+      "pattern": "Regular expression pattern to match (use double backslashes for escaping)",
       "replacement": "Replacement string (use $1, $2, etc. for capture groups)",
       "flags": "Regex flags: 'g' for global, 'i' for case-insensitive, 'm' for multiline",
       "enabled": "Set to false to disable a rule without deleting it"
     },
 
-    preprocess: DEFAULT_PREPROCESS_RULES.map(rule => ({
+    preprocess: sampleConfig.preprocess.map(rule => ({
       name: rule.name,
       description: rule.description,
       pattern: rule.pattern,
@@ -403,28 +445,43 @@ export function generateSampleConfig(outputPath: string): void {
       enabled: rule.enabled !== false
     })),
 
-    postprocess: DEFAULT_POSTPROCESS_RULES.map(rule => ({
-      name: rule.name,
-      description: rule.description,
-      pattern: rule.pattern,
-      replacement: rule.replacement,
-      flags: rule.flags || "g",
-      enabled: rule.enabled !== false
-    }))
+    postprocess: [
+      // Standard rules
+      ...sampleConfig.postprocess.map(rule => ({
+        name: rule.name,
+        description: rule.description,
+        pattern: rule.pattern,
+        replacement: rule.replacement,
+        flags: rule.flags || "g",
+        enabled: rule.enabled !== false
+      })),
+
+      // Add experimental rules if requested
+      ...(includeExperimental ? EXPERIMENTAL_POSTPROCESS_RULES.map(rule => ({
+        name: rule.name,
+        description: rule.description + " (EXPERIMENTAL)",
+        pattern: rule.pattern,
+        replacement: rule.replacement,
+        flags: rule.flags || "g",
+        enabled: rule.enabled !== false
+      })) : [])
+    ]
   };
 
-  // Write the config file with proper formatting
-  // JSON.stringify automatically handles the escaping correctly
+  if (includeExperimental) {
+    configWithComments._experimental_notice = "Experimental rules included - not confirmed by Insomnia team";
+  }
+
   const jsonString = JSON.stringify(configWithComments, null, 2);
   fs.writeFileSync(outputPath, jsonString, 'utf8');
 
   console.log(`✅ Sample config generated at: ${outputPath}`);
   console.log(`📝 Config contains ${sampleConfig.preprocess.length} preprocessing rules`);
-  console.log(`📝 Config contains ${sampleConfig.postprocess.length} postprocessing rules`);
-  console.log('🔧 Edit this file to customize transformation rules.');
-  console.log('💡 Set "enabled": false to disable rules without deleting them.');
+  console.log(`📝 Config contains ${sampleConfig.postprocess.length + (includeExperimental ? EXPERIMENTAL_POSTPROCESS_RULES.length : 0)} postprocessing rules`);
+  if (includeExperimental) {
+    console.log(`🧪 Included ${EXPERIMENTAL_POSTPROCESS_RULES.length} experimental rules`);
+  }
 }
-
 // =============================================================================
 // USAGE EXAMPLES
 // =============================================================================

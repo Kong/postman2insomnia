@@ -929,4 +929,333 @@ describe('Converter with Transform Support', () => {
       expect(request.scripts.afterResponse).toContain('insomnia.test');
     });
   });
+
+  // =============================================================================
+  // EXPERIMENTAL CONVERTER TESTS
+  // =============================================================================
+  describe('Experimental Transform Processing', () => {
+    test('should apply experimental rules when experimental flag is true', async () => {
+      const testCollection = {
+        info: {
+          name: 'Experimental Test Collection',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+        },
+        item: [
+          {
+            name: 'Bracket Notation Request',
+            request: {
+              method: 'GET',
+              url: 'https://api.example.com/test'
+            },
+            event: [
+              {
+                listen: 'test',
+                script: {
+                  exec: [
+                    'var json = pm.response.json();',
+                    'pm.expect(json[\'access_token\']).to.be.a(\'string\');',
+                    'pm.environment.set("TOKEN", json[\'access_token\']);'
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      };
+
+      const inputFile = createTestFile('experimental-true.json', testCollection);
+
+      const options: ConversionOptions = {
+        outputDir: tempDir,
+        format: 'yaml',
+        merge: false,
+        verbose: false,
+        postprocess: true,
+        experimental: true  // Experimental flag enabled
+      };
+
+      const result = await convertPostmanToInsomnia([inputFile], options);
+
+      expect(result.successful).toBe(1);
+      expect(result.failed).toBe(0);
+
+      const outputFile = result.outputs[0];
+      const content = fs.readFileSync(outputFile, 'utf8');
+      const parsed = yaml.load(content) as any;
+
+      const script = parsed.collection[0].scripts.afterResponse;
+
+      // Should apply experimental bracket notation conversion
+      expect(script).toContain('json.access_token');
+      expect(script).not.toContain('json[\'access_token\']');
+    });
+
+    test('should not apply experimental rules when experimental flag is false', async () => {
+      const testCollection = {
+        info: {
+          name: 'No Experimental Test Collection',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+        },
+        item: [
+          {
+            name: 'Standard Request',
+            request: {
+              method: 'GET',
+              url: 'https://api.example.com/standard'
+            },
+            event: [
+              {
+                listen: 'test',
+                script: {
+                  exec: [
+                    'var response = pm.response.json();',
+                    'pm.expect(response[\'user_id\']).to.exist;'
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      };
+
+      const inputFile = createTestFile('experimental-false.json', testCollection);
+
+      const options: ConversionOptions = {
+        outputDir: tempDir,
+        format: 'yaml',
+        merge: false,
+        verbose: false,
+        postprocess: true,
+        experimental: false  // Experimental flag disabled
+      };
+
+      const result = await convertPostmanToInsomnia([inputFile], options);
+
+      expect(result.successful).toBe(1);
+
+      const outputFile = result.outputs[0];
+      const content = fs.readFileSync(outputFile, 'utf8');
+      const parsed = yaml.load(content) as any;
+
+      const script = parsed.collection[0].scripts.afterResponse;
+
+      // Should NOT apply experimental bracket notation conversion
+      expect(script).toContain('response[\'user_id\']');
+      expect(script).not.toContain('response.user_id');
+    });
+
+    test('should handle ExtendedTransformEngine creation correctly', async () => {
+      const testCollection = {
+        info: {
+          name: 'Engine Test Collection',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+        },
+        item: [
+          {
+            name: 'Engine Test Request',
+            request: {
+              method: 'POST',
+              url: 'https://api.example.com/engine-test'
+            }
+          }
+        ]
+      };
+
+      const inputFile = createTestFile('engine-test.json', testCollection);
+
+      const options: ConversionOptions = {
+        outputDir: tempDir,
+        format: 'yaml',
+        merge: false,
+        verbose: true,  // Enable verbose to see engine creation
+        postprocess: true,
+        experimental: true
+      };
+
+      // Should not throw any errors when creating ExtendedTransformEngine
+      expect(async () => {
+        await convertPostmanToInsomnia([inputFile], options);
+      }).not.toThrow();
+
+      const result = await convertPostmanToInsomnia([inputFile], options);
+      expect(result.successful).toBe(1);
+      expect(result.failed).toBe(0);
+    });
+
+    test('should apply experimental preprocessing rules when experimental flag is true', async () => {
+      const testCollection = {
+        info: {
+          name: 'Preprocess Experimental Test',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+        },
+        item: [
+          {
+            name: 'Legacy Syntax Request',
+            request: {
+              method: 'GET',
+              url: 'https://api.example.com/legacy'
+            },
+            event: [
+              {
+                listen: 'prerequest',
+                script: {
+                  exec: [
+                    'var token = postman.getEnvironmentVariable("auth_token");',
+                    'postman.setEnvironmentVariable("processed_token", token);'
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      };
+
+      const inputFile = createTestFile('preprocess-experimental.json', testCollection);
+
+      const options: ConversionOptions = {
+        outputDir: tempDir,
+        format: 'yaml',
+        merge: false,
+        verbose: false,
+        preprocess: true,
+        experimental: true
+      };
+
+      const result = await convertPostmanToInsomnia([inputFile], options);
+
+      expect(result.successful).toBe(1);
+
+      const outputFile = result.outputs[0];
+      const content = fs.readFileSync(outputFile, 'utf8');
+      const parsed = yaml.load(content) as any;
+
+      const script = parsed.collection[0].scripts.preRequest;
+
+      // Should apply preprocessing to convert legacy syntax
+      expect(script).toContain('insomnia.environment.get("auth_token")');
+      expect(script).toContain('insomnia.environment.set("processed_token"');
+      expect(script).not.toContain('postman.getEnvironmentVariable');
+      expect(script).not.toContain('postman.setEnvironmentVariable');
+    });
+
+    test('should handle complex nested bracket notation with experimental rules', async () => {
+      const testCollection = {
+        info: {
+          name: 'Complex Bracket Test',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+        },
+        item: [
+          {
+            name: 'Nested Bracket Request',
+            request: {
+              method: 'GET',
+              url: 'https://api.example.com/nested'
+            },
+            event: [
+              {
+                listen: 'test',
+                script: {
+                  exec: [
+                    'var apiResponse = pm.response.json();',
+                    'pm.expect(apiResponse[\'data\'][\'user\'][\'profile\'][\'email\']).to.be.a(\'string\');',
+                    'var userInfo = apiResponse[\'data\'][\'user\'];',
+                    'pm.environment.set("USER_EMAIL", userInfo[\'profile\'][\'email\']);'
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      };
+
+      const inputFile = createTestFile('nested-bracket.json', testCollection);
+
+      const options: ConversionOptions = {
+        outputDir: tempDir,
+        format: 'yaml',
+        merge: false,
+        verbose: false,
+        postprocess: true,
+        experimental: true
+      };
+
+      const result = await convertPostmanToInsomnia([inputFile], options);
+
+      expect(result.successful).toBe(1);
+
+      const outputFile = result.outputs[0];
+      const content = fs.readFileSync(outputFile, 'utf8');
+      const parsed = yaml.load(content) as any;
+
+      const script = parsed.collection[0].scripts.afterResponse;
+
+      // Should convert deeply nested bracket notation with multiple passes
+      expect(script).toContain('apiResponse.data.user.profile.email');
+      expect(script).toContain('apiResponse.data.user');
+      expect(script).toContain('userInfo.profile.email');
+
+      // Should not contain any bracket notation
+      expect(script).not.toContain('[\'data\'][\'user\'][\'profile\'][\'email\']');
+      expect(script).not.toContain('[\'profile\'][\'email\']');
+    });
+
+    test('should work with custom config file and experimental flag', async () => {
+      const testCollection = {
+        info: {
+          name: 'Custom Config Test',
+          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+        },
+        item: [
+          {
+            name: 'Config Test Request',
+            request: {
+              method: 'GET',
+              url: 'https://api.example.com/config'
+            },
+            event: [
+              {
+                listen: 'test',
+                script: {
+                  exec: [
+                    'var data = pm.response.json();',
+                    'pm.expect(data[\'simple_field\']).to.equal(\'test\');'
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      };
+
+      // Create a simple custom config that doesn't conflict
+      const customConfig = {
+        preprocess: [],
+        postprocess: []  // Empty, just test that custom config loading works
+      };
+
+      const configFile = createTestFile('custom-config.json', customConfig);
+      const inputFile = createTestFile('config-test.json', testCollection);
+
+      const options: ConversionOptions = {
+        outputDir: tempDir,
+        format: 'yaml',
+        merge: false,
+        verbose: false,
+        postprocess: true,
+        configFile: configFile,
+        experimental: true
+      };
+
+      const result = await convertPostmanToInsomnia([inputFile], options);
+
+      expect(result.successful).toBe(1);
+
+      const outputFile = result.outputs[0];
+      const content = fs.readFileSync(outputFile, 'utf8');
+
+      // Just verify experimental bracket notation conversion works
+      expect(content).toContain('data.simple_field');
+      expect(content).not.toContain('data[\'simple_field\']');
+    });
+  });
 });

@@ -152,6 +152,9 @@ postman2insomnia exports/*.json --use-collection-folder --preprocess --postproce
 
 # Use custom config for enterprise collections with nested structure
 postman2insomnia enterprise/*.json --use-collection-folder --config-file ./enterprise-transforms.json -o ./converted
+
+# Use experimental rules
+postman2insomnia collection.json --preprocess --postprocess --experimental
 ```
 
 ### Transform Configuration Management
@@ -175,6 +178,7 @@ postman2insomnia collection.json --config-file ./transforms.json
 | `--merge` | `-m` | Merge all collections into a single file | `false` |
 | `--verbose` | `-v` | Verbose output | `false` |
 | `--use-collection-folder` | | Add collection name as containing folder | `false`* |
+| `--experimental` | | Use the experimental pre and post processing rules as well as the defaults | `false`* |
 | `--preprocess` | | Apply preprocessing transforms | `false` |
 | `--postprocess` | | Apply postprocessing transforms | `false` |
 | `--config-file <path>` | | Custom transform configuration file | |
