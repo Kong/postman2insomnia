@@ -2,7 +2,7 @@
 
 A powerful command-line tool that converts Postman collections and environments to Insomnia v5 YAML format with advanced script compatibility features and flexible folder organization. This tool was built by extracting and adapting the core conversion logic from Insomnia's UI codebase to create a standalone CLI utility.
 
-## 🚀 Features
+## Features
 
 ### Core Conversion
 - **Converts Postman Collections** (v2.0 and v2.1) to Insomnia v5 YAML format
@@ -15,7 +15,7 @@ A powerful command-line tool that converts Postman collections and environments 
 - **Filters disabled variables** from environments
 - **Auto-detects file types** (collection vs environment)
 
-### 📁 Folder Structure Options (New!)
+### Folder Structure Options
 - **Flexible folder organization** - Choose between two folder structures:
   - **Original structure** (default): `Collection Name > Folders/Requests`
   - **Nested structure**: `Collection Name > Collection Name > Folders/Requests`
@@ -23,12 +23,37 @@ A powerful command-line tool that converts Postman collections and environments 
 - **Backward compatibility** - Default behavior preserved for existing workflows
 - **Future-ready** - Nested structure will become default in future major version
 
-### 🔧 Transform System
+### Transform System
 - **Preprocessing transforms** - Fix deprecated Postman syntax before conversion
 - **Postprocessing transforms** - Fix Insomnia API differences after conversion
 - **Script compatibility engine** - Automatically resolves API differences between Postman and Insomnia
 - **Custom transform rules** - Define your own conversion patterns via config files
-- **Built-in compatibility fixes** for common script issues
+- **Advanced RegExp support** - Use native RegExp objects for complex patterns with lookbehind/lookahead
+- **Built-in compatibility fixes** for common script issues including legacy `responseBody` references
+
+#### Built-in Transform Rules
+
+The tool now includes enhanced built-in rules:
+
+##### Preprocessing Rules
+- `deprecated-pm-syntax` - Fix deprecated `pm.responseHeaders[...]` syntax
+- `old-postman-vars` - Convert `postman.getEnvironmentVariable()`
+- `old-postman-global-vars` - Convert `postman.getGlobalVariable()`
+- `legacy-test-syntax` - Convert `tests[...]` assignments
+- **NEW (v1.6.0)**: `responseBody-to-response` - Convert legacy `responseBody` references
+- `legacy-postman-test` - Convert `postman.test()` calls
+- `postman-environment-setter` - Convert `postman.setEnvironmentVariable()`
+- `postman-global-setter` - Convert `postman.setGlobalVariable()`
+- `responseCode-to-response` - Convert `responseCode.code` references
+- `nextRequest-syntax` - Convert `postman.setNextRequest()`
+
+##### Postprocessing Rules
+- `fix-header-conditional-access` - Fix header conditionals in Insomnia
+- `fix-header-string-comparison` - Fix header string comparisons
+- `fix-header-value-access` - Fix header value access patterns
+- `fix-request-headers-add` - Convert header addition methods
+- `fix-request-url-assignment` - Convert URL assignment syntax
+
 
 ### 🛠️ Script Processing
 - **Pre-request and post-response scripts** conversion from `pm.*` to `insomnia.*` syntax
@@ -78,7 +103,7 @@ npm run build
 node dist/cli.js <options>
 ```
 
-## 🔧 Usage
+## Usage
 
 ### Basic Usage
 
@@ -99,7 +124,7 @@ postman2insomnia collection.json -o ./converted-files
 postman2insomnia collection.json -v
 ```
 
-### 📁 Folder Structure Options
+### Folder Structure Options
 
 ```bash
 # Default structure: Collection Name > Folders/Requests
@@ -119,7 +144,7 @@ postman2insomnia collection.json --use-collection-folder
 # │       └── Kong - PSD2
 ```
 
-### 🆕 Transform Usage
+### Transform Usage
 
 ```bash
 # Apply both preprocessing and postprocessing transforms (recommended)
@@ -188,7 +213,7 @@ postman2insomnia collection.json --config-file ./transforms.json
 
 *_**Note**: `--use-collection-folder` currently defaults to `false` for backward compatibility. In a future major version, this will become the default behavior to better match how Insomnia UI performs conversions._
 
-## 🔍 When to Use Options
+## When to Use Options
 
 ### Use `--use-collection-folder` when:
 - You want the converted structure to match Insomnia UI behavior
@@ -231,7 +256,7 @@ postman2insomnia collection.json --use-collection-folder --preprocess --postproc
 - **Contains**: Environment variables, global variables
 - **Note**: Disabled variables are automatically filtered out
 
-## 📋 Examples
+## Examples
 
 ### Convert with Nested Structure (Recommended)
 
@@ -302,7 +327,7 @@ postman2insomnia collections/*.json \
   --verbose
 ```
 
-## 🏗️ Folder Structure Comparison
+## Folder Structure Comparison
 
 ### Original Structure (Current Default)
 ```
@@ -329,13 +354,142 @@ Consumer Finance (collection)
 
 The nested structure matches how Insomnia UI performs conversions and provides better organization for complex collections.
 
-## 🐛 Common Issues & Solutions
+## New Advanced Transform Configuration Examples
+
+### Advanced Transform Configuration
+
+The transform system now supports both string patterns and native RegExp objects for maximum flexibility:
+
+```json
+{
+  "preprocess": [
+    {
+      "name": "string-pattern-example",
+      "description": "Traditional string-based pattern",
+      "pattern": "\\bold_postman_syntax\\b",
+      "replacement": "new_syntax",
+      "flags": "g",
+      "enabled": true
+    }
+  ],
+  "postprocess": [
+    {
+      "name": "regexp-pattern-example",
+      "description": "Advanced RegExp with lookbehind/lookahead",
+      "pattern": "/(?<![\\.\\$])\\bresponseBody\\b(?!\\$)/g",
+      "replacement": "pm.response.text()",
+      "enabled": true,
+      "note": "When using RegExp objects, flags property is ignored"
+    }
+  ]
+}
+```
+
+### Complex Pattern Examples
+
+```bash
+# Transform files with advanced RegExp patterns
+postman2insomnia collection.json --preprocess --postprocess --config-file ./advanced-transforms.json
+```
+
+**New in v1.6.0**: RegExp object support enables complex patterns that are impossible to express as strings:
+
+```json
+{
+  "name": "responseBody-conversion",
+  "description": "Convert standalone responseBody references (avoiding properties)",
+  "pattern": "/(?<![\\.\\$])\\bresponseBody\\b(?!\\$)/g",
+  "replacement": "pm.response.text()",
+  "enabled": true
+}
+```
+
+This pattern:
+- ✅ Converts: `responseBody` → `pm.response.text()`
+- ❌ Ignores: `object.responseBody` (property access)
+- ❌ Ignores: `responseBody$variable` (variable names)
+
+## Pattern Type Support
+
+### Pattern Types
+
+Transform rules support two pattern types:
+
+#### String Patterns (Traditional)
+```json
+{
+  "pattern": "\\bpm\\.responseHeaders\\[(.*?)\\]",
+  "flags": "g"
+}
+```
+- Uses traditional regex string syntax with escaping
+- Requires separate `flags` property
+- Compatible with all existing configurations
+
+#### RegExp Objects (New in v1.6.0)
+```json
+{
+  "pattern": "/(?<![\\.\\$])\\bresponseBody\\b(?!\\$)/g"
+}
+```
+- Native JavaScript RegExp object syntax
+- Flags included in the pattern itself
+- Enables advanced features like lookbehind/lookahead
+- `flags` property ignored when RegExp object is used
+
+### When to Use RegExp Objects
+
+Use RegExp objects for:
+- **Complex assertions** requiring lookbehind/lookahead
+- **Performance-critical** rules (pre-compiled patterns)
+- **Advanced features** not available in string patterns
+- **Complex word boundaries** with context awareness
+
+Continue using string patterns for:
+- **Simple replacements** and straightforward patterns
+- **Legacy compatibility** with existing configurations
+- **Dynamic flag assignment** based on conditions
+
+## Section: Migration Guide
+
+### Migrating to v1.6.0
+
+**No breaking changes** - existing configurations work unchanged:
+
+```json
+// ✅ Existing string patterns continue working
+{
+  "pattern": "oldSyntax",
+  "replacement": "newSyntax",
+  "flags": "g"
+}
+
+// ✅ New RegExp patterns available for complex cases
+{
+  "pattern": "/(?<!prefix)\\btarget\\b(?!suffix)/g",
+  "replacement": "replacement"
+}
+```
+
+**Optional enhancements** available:
+- Migrate complex string patterns to RegExp objects for better readability
+- Use lookbehind/lookahead for more precise matching
+- Leverage pre-compiled patterns for performance gains
+
+### Backward Compatibility
+
+- ✅ All existing transform configurations work without changes
+- ✅ String patterns with flags continue to function identically
+- ✅ No modification required for existing workflows
+- ✅ RegExp object support is purely additive
+
+## Common Issues & Solutions
 
 ### Script Compatibility Issues
 
 **Problem**: Converted scripts fail with method errors
 ```javascript
-// ❌ This fails in Insomnia
+// This fails in Insomnia
 if (insomnia.response.headers.get('Content-Type').includes('json')) {
     // Error: headers.get(...).includes is not a function
 }
@@ -346,7 +500,7 @@ if (insomnia.response.headers.get('Content-Type').includes('json')) {
 postman2insomnia collection.json --postprocess
 ```
 ```javascript
-// ✅ This works after postprocessing
+// This works after postprocessing
 if (insomnia.response.headers.get('Content-Type').value.includes('json')) {
     // Fixed: .value property added automatically
 }
@@ -356,7 +510,7 @@ if (insomnia.response.headers.get('Content-Type').value.includes('json')) {
 
 **Problem**: Old collections use deprecated methods
 ```javascript
-// ❌ Deprecated syntax
+// Deprecated syntax
 var token = postman.getEnvironmentVariable('auth_token');
 tests['Status is 200'] = responseCode.code === 200;
 ```
@@ -366,7 +520,7 @@ tests['Status is 200'] = responseCode.code === 200;
 postman2insomnia collection.json --preprocess
 ```
 ```javascript
-// ✅ Updated to modern syntax
+// Updated to modern syntax
 var token = pm.environment.get('auth_token');
 pm.test('Status is 200', function() { pm.expect(pm.response.code).to.equal(200); });
 ```
@@ -378,7 +532,7 @@ pm.test('Status is 200', function() { pm.expect(pm.response.code).to.equal(200);
 // CLI default structure
 Collection Name > Folders/Requests
 
-// Insomnia UI structure  
+// Insomnia UI structure
 Collection Name > Collection Name > Folders/Requests
 ```
 
@@ -387,7 +541,7 @@ Collection Name > Collection Name > Folders/Requests
 postman2insomnia collection.json --use-collection-folder
 ```
 
-## 📖 Advanced Transform Configuration
+## Advanced Transform Configuration
 
 ### Custom Transform Rules
 
@@ -460,7 +614,7 @@ jobs:
           path: ./insomnia-collections/
 ```
 
-## 🏗️ How This Tool Was Created
+## How This Tool Was Created
 
 This CLI tool was built by extracting and adapting the core conversion logic from **Insomnia's open-source UI codebase**. The original conversion functions were designed for UI integration and database storage. This project:
 
@@ -480,7 +634,7 @@ This CLI tool was built by extracting and adapting the core conversion logic fro
 
 6. **Maintained compatibility** with original Insomnia conversion logic
 
-## 🔧 Technical Details
+## Technical Details
 
 ### Architecture
 ```
@@ -503,7 +657,7 @@ This CLI tool was built by extracting and adapting the core conversion logic fro
 - **Environments**: `environment.insomnia.rest/5.0` YAML format
 - **Schema compliance**: Generated files pass Insomnia v5 validation
 
-## ⚠️ Limitations
+## Limitations
 
 1. **Simplified Authentication**: Some complex authentication flows are simplified but functional
 2. **Script Compatibility**: Pre-request and post-response scripts are converted from `pm.*` to `insomnia.*` syntax with automatic compatibility fixes
@@ -511,13 +665,13 @@ This CLI tool was built by extracting and adapting the core conversion logic fro
 4. **Node.js Required**: Requires Node.js runtime (not a standalone binary)
 5. **YAML Output**: Primarily generates YAML (JSON option exists but not fully implemented)
 
-## 🔮 Future Changes
+## Future Changes
 
 **Important**: In a future major version (v2.0.0), the `--use-collection-folder` behavior will become the default to better match how Insomnia UI performs conversions. This will be a breaking change, but the current behavior will remain available via a flag.
 
 **Migration Path**: Start using `--use-collection-folder` now to prepare for the future default behavior.
 
-## 🤝 Contributing
+## Contributing
 
 This tool was built by adapting Insomnia's existing codebase. When contributing:
 
@@ -536,17 +690,17 @@ To add new transform rules:
 3. Test with collections that exhibit the issue
 4. Update documentation
 
-## 📚 Documentation
+## Documentation
 
 - **[Transform System Guide](docs/transform-system.md)** - Comprehensive guide to the transform system
 - **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
 - **[Configuration Reference](docs/configuration.md)** - Complete configuration options
 
-## 📄 License
+## License
 
 This project adapts open-source code from the Insomnia project. Please refer to the original Insomnia license terms.
 
-## 🔗 Related Projects
+## Related Projects
 
 - [Insomnia](https://github.com/Kong/insomnia) - The original REST client and source of conversion logic
 - [Postman](https://www.postman.com/) - API development platform and source format

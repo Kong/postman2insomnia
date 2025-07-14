@@ -5,6 +5,64 @@ All notable changes to the Postman to Insomnia CLI converter will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2025-07-14
+
+### Added
+- **Advanced RegExp Pattern Support** - Transform rules now support both string patterns and native RegExp objects
+  - Enables complex patterns with lookbehind/lookahead assertions impossible to express as strings
+  - Backward compatible: existing string patterns continue to work unchanged
+  - RegExp objects bypass flags property (compiled patterns ignore separate flags)
+- **New responseBody Transform Rule** - Automatically converts legacy `responseBody` references to `pm.response.text()`
+  - Uses sophisticated pattern: `/(?<![\$\.])\bresponseBody\b(?!\$)/g`
+  - Avoids false matches like `foo.responseBody` or `responseBody$variable`
+  - Targets standalone `responseBody` references commonly found in older Postman collections
+
+### Enhanced
+- **Transform Rule Interface** - Extended `TransformRule.pattern` type from `string` to `string | RegExp`
+- **Regex Creation Logic** - Intelligent handling of both string and RegExp pattern types
+- **Pattern Complexity Support** - Now supports advanced regex features like:
+  - Negative lookbehind: `(?<![\$\.])`
+  - Negative lookahead: `(?!\$)`
+  - Word boundaries with context awareness
+  - Pre-compiled RegExp objects for performance
+
+### Technical Details
+- **Backward Compatibility** - Zero breaking changes to existing configurations
+- **Performance Optimization** - Pre-compiled RegExp objects avoid repeated compilation costs
+
+### Migration Notes
+- **No Action Required** - Existing transform configurations work without changes
+- **Optional Enhancement** - Complex patterns can be migrated to RegExp objects for better maintainability
+- **Flag Behavior** - When using RegExp objects, the `flags` property is ignored (as expected)
+
+### Example Usage
+```typescript
+// New RegExp pattern support
+{
+  name: "responseBody-to-response",
+  description: "Convert responseBody to pm.response.text()",
+  pattern: /(?<![\$\.])\bresponseBody\b(?!\$)/g,  // ← Native RegExp object
+  replacement: "pm.response.text()",
+  enabled: true
+}
+
+// Existing string patterns continue working
+{
+  name: "legacy-pattern",
+  description: "Existing string pattern",
+  pattern: "\\bold_syntax\\b",  // ← String pattern (unchanged)
+  replacement: "new_syntax",
+  flags: "g",
+  enabled: true
+}
+```
+
+### Test Coverage
+- RegExp pattern functionality with complex assertions
+- Backward compatibility with existing string patterns
+- Edge case handling for `responseBody` transformations
+- Error handling for invalid patterns
+
 ## [1.5.0] - 2025-07-10
 
 ### Added
