@@ -294,16 +294,4 @@ postman2insomnia collection.json --use-collection-folder --preprocess --postproc
 
 ---
 
-## Future Planned Features
-
-### [Unreleased]
-- Enhanced authentication method support
-- Better error messages and validation
-- Support for additional Postman features
-- Performance optimizations for large collections
-- Configuration file support
-- Plugin system for custom transformations
-
----
-
 **Note**: This changelog will be updated with each release to track all changes, improvements, and bug fixes.
