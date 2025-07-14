@@ -146,7 +146,8 @@ describe('Default Preprocessing Rules', () => {
       const testCases = [
         // Note: responseCode.code also gets converted to pm.response.code by another rule
         ['tests["Status check"] = responseCode.code === 200;', 'pm.test("Status check", function() { pm.expect(pm.response.code === 200).to.be.true; });'],
-        ["tests['Content type'] = responseBody.includes('json');", "pm.test('Content type', function() { pm.expect(responseBody.includes('json')).to.be.true; });"],
+        // UPDATED: responseBody now gets converted to pm.response.text() by the responseBody-to-response rule
+        ["tests['Content type'] = responseBody.includes('json');", "pm.test('Content type', function() { pm.expect(pm.response.text().includes('json')).to.be.true; });"],
         ['tests[`Response time`] = responseTime < 1000;', 'pm.test(`Response time`, function() { pm.expect(responseTime < 1000).to.be.true; });']
       ];
 
@@ -172,7 +173,8 @@ describe('Default Preprocessing Rules', () => {
       const testCases = [
         // Note: responseCode.code gets converted to pm.response.code by the responseCode-to-response rule
         ['tests["Complex test"] = responseCode.code === 200 && responseTime < 1000;', 'pm.test("Complex test", function() { pm.expect(pm.response.code === 200 && responseTime < 1000).to.be.true; });'],
-        ['tests["Data validation"] = responseBody.data && responseBody.data.length > 0;', 'pm.test("Data validation", function() { pm.expect(responseBody.data && responseBody.data.length > 0).to.be.true; });']
+        // UPDATED: responseBody now gets converted to pm.response.text() by the responseBody-to-response rule
+        ['tests["Data validation"] = responseBody.data && responseBody.data.length > 0;', 'pm.test("Data validation", function() { pm.expect(pm.response.text().data && pm.response.text().data.length > 0).to.be.true; });']
       ];
 
       testCases.forEach(([input, expected]) => {
