@@ -14,9 +14,9 @@ import * as path from 'path';
 export interface TransformRule {
   name: string;
   description: string;
-  pattern: string;
+  pattern: string | RegExp;
   replacement: string;
-  flags?: string;
+  flags?: string; // Only used if pattern is a string
   enabled?: boolean;
 }
 
@@ -125,6 +125,13 @@ export const DEFAULT_PREPROCESS_RULES: TransformRule[] = [
     pattern: "\\bresponseCode\\.code",
     replacement: "pm.response.code",
     flags: "g",
+    enabled: true
+  },
+  {
+    name: "responseBody-to-response",
+    description: "Convert responseBody to pm.response.text()",
+    pattern: /(?<![\$\.])\bresponseBody\b(?!\$)/g,
+    replacement: "pm.response.text()",
     enabled: true
   },
   {
@@ -275,7 +282,7 @@ export class TransformEngine {
         if (!rule.enabled) continue;
 
         try {
-          const regex = new RegExp(rule.pattern, rule.flags || 'g');
+          const regex = rule.pattern instanceof RegExp ? rule.pattern : new RegExp(rule.pattern, rule.flags || 'g');
           transformed = transformed.replace(regex, rule.replacement);
         } catch (error) {
           console.warn(`Failed to apply preprocess rule "${rule.name}":`, error);
@@ -313,7 +320,7 @@ export class TransformEngine {
         if (!rule.enabled) continue;
 
         try {
-          const regex = new RegExp(rule.pattern, rule.flags || 'g');
+          const regex = rule.pattern instanceof RegExp ? rule.pattern : new RegExp(rule.pattern, rule.flags || 'g');
           transformed = transformed.replace(regex, rule.replacement);
         } catch (error) {
           console.warn(`Failed to apply postprocess rule "${rule.name}":`, error);

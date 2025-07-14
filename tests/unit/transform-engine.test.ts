@@ -268,6 +268,28 @@ describe('TransformEngine', () => {
       expect(result).toBe('pm.response.headers.get("Content-Type") and pm.response.headers.get("Accept")');
     });
 
+    test('should handle regexp patterns', () => {
+      const rules: TransformRule[] = [
+        {
+          name: 'regexp patterns',
+          description: 'Regexp pattern',
+          pattern: /(?<![\$\.])\bresponseBody\b(?!\$)/g,
+          replacement: "pm.response.text()",
+          enabled: true
+        }
+      ];
+
+      const engine = new TransformEngine({ preprocess: rules });
+      let result = engine.preprocess('responseBody');
+      expect(result).toBe('pm.response.text()');
+
+      result = engine.preprocess('foo.responseBody');
+      expect(result).toBe('foo.responseBody');
+
+      result = engine.preprocess('responseBody$foo');
+      expect(result).toBe('responseBody$foo');
+    });
+
     test('should handle invalid regex patterns gracefully', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
       const rules: TransformRule[] = [
