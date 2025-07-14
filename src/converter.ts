@@ -61,11 +61,43 @@ export interface ConversionResult {
 // ENHANCED FILE PROCESSING WITH TRANSFORMS
 // =============================================================================
 
-function isPostmanEnvironment(parsed: any): boolean {
-  return (
-    parsed._postman_variable_scope === 'environment' ||
-    parsed._postman_variable_scope === 'globals'
-  ) && Array.isArray(parsed.values);
+/**
+ * Checks if a parsed JSON object is a Postman environment.
+ *
+ * This check is based on the core structural properties of a Postman environment
+ * (`name` and `values` array) as defined by its JSON schema. This is more
+ * reliable than checking for `_postman_variable_scope`, which may be absent
+ * in environments exported via the Postman API. It also includes a check to
+ * differentiate it from a Postman Collection.
+ *
+ * @param parsed The parsed JSON data.
+ * @returns True if the object is a Postman environment, false otherwise.
+ */
+export function isPostmanEnvironment(parsed: any): boolean {
+  if (
+    !parsed ||
+    typeof parsed !== 'object' ||
+    typeof parsed.name !== 'string' ||
+    !Array.isArray(parsed.values) ||
+    (parsed.info && parsed.item) // Quick check: not a collection
+  ) {
+    return false;
+  }
+
+  // If the values array is not empty, we can check if
+  // the first item has the structure of a variable (i.e., has key/value properties).
+  if (parsed.values.length > 0) {
+    const firstValue = parsed.values[0];
+    return (
+      typeof firstValue === 'object' &&
+      firstValue !== null &&
+      'key' in firstValue &&
+      'value' in firstValue
+    );
+  }
+
+  // Environment with an empty 'values' array is still valid.
+  return true;
 }
 
 function isPostmanCollection(parsed: any): boolean {
@@ -87,17 +119,19 @@ function generateSecureInsomniaUUID(prefix: string): string {
   return `${prefix}_${hex32.padEnd(32, '0')}`;
 }
 
-function convertPostmanEnvironment(envData: any): any[] {
-  const validPostmanEnvTypes = ['globals', 'environment'];
-  if (!validPostmanEnvTypes.includes(envData._postman_variable_scope)) {
-    return [];
-  }
+/**
+ * Converts a validated Postman environment object to the Insomnia format.
+ *
+ * @param envData The Postman environment data.
+ * @returns An array of Insomnia-compatible objects.
+ */
+export function convertPostmanEnvironment(envData: any): any[] {
 
   const workspaceId = generateSecureInsomniaUUID('wrk');
   const envId = generateSecureInsomniaUUID('env');
 
   const data = envData.values.reduce((accumulator: any, { enabled, key, value }: any) => {
-    if (!enabled) {
+    if (enabled === false) {
       return accumulator;
     }
     return {
@@ -106,12 +140,15 @@ function convertPostmanEnvironment(envData: any): any[] {
     };
   }, {});
 
+  // Default the scope to 'environment' if it's not present.
+  const scope = envData._postman_variable_scope || 'environment';
+
   return [
     {
       _id: workspaceId,
       _type: 'workspace',
       name: envData.name || 'Imported Environment',
-      description: `Imported from Postman ${envData._postman_variable_scope}`,
+      description: `Imported from Postman ${scope}`,
       parentId: null,
       scope: 'environment'
     },
@@ -128,6 +165,7 @@ function convertPostmanEnvironment(envData: any): any[] {
     }
   ];
 }
+
 
 // =============================================================================
 // MAIN CONVERSION ORCHESTRATOR WITH TRANSFORMS

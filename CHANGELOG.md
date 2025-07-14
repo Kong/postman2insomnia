@@ -5,6 +5,30 @@ All notable changes to the Postman to Insomnia CLI converter will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2025-07-14
+
+### Fixed
+- **Environment API Export Support** - Fixed detection of Postman environments exported via the Postman API
+  - Environments exported through the API lack the `_postman_variable_scope` field present in UI exports
+  - Enhanced `isPostmanEnvironment()` function to use schema-based validation instead of scope field dependency
+  - Now validates based on core structural properties: `name` (string) and `values` (array) as per official Postman environment schema
+  - Added robustness check for variable structure validation when values array is not empty
+  - Improved differentiation between environments and collections by checking for absence of `info` and `item` fields
+- **Environment Type Detection** - Updated `convertPostmanEnvironment()` to handle missing `_postman_variable_scope` field
+  - Defaults to `'environment'` scope when field is missing (API exports)
+  - Fixed variable filtering logic to properly handle `enabled` field (now checks `enabled === false` instead of `!enabled`)
+  - Added informative workspace descriptions indicating export source (UI vs API)
+
+### Enhanced
+- **Function Documentation** - Added comprehensive JSDoc comments for environment detection and conversion functions
+- **Export Visibility** - Made `isPostmanEnvironment()` and `convertPostmanEnvironment()` functions publicly exportable for testing
+- **Error Prevention** - Added collection detection safeguards to prevent false positives
+
+### Technical Details
+- **Schema Compliance** - Detection now follows official Postman environment JSON schema requirements
+- **Backward Compatibility** - Maintains full compatibility with existing UI-exported environments
+- **API Export Coverage** - Comprehensive support for environments exported via Postman API endpoints
+
 ## [1.6.0] - 2025-07-14
 
 ### Added
