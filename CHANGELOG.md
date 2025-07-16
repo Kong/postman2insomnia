@@ -5,6 +5,19 @@ All notable changes to the Postman to Insomnia CLI converter will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.2] - 2025-01-16
+
+### Added
+- **Deprecation Notice** - Added prominent notice about planned migration to Insomnia core product
+  - Notice displayed in README for visibility to new users
+  - CLI now shows deprecation warning on startup
+  - Advises users to migrate to core Insomnia functionality when available
+  - Added `--quiet` flag to suppress deprecation warning
+
+### Enhanced
+- **User Communication** - Clear messaging about tool's temporary nature and future migration path
+- **Professional Transition** - Transparent communication about product roadmap
+
 ## [1.7.1] - 2025-01-16
 
 ### Fixed

@@ -31,6 +31,18 @@ import { join } from 'path';
 
 const program = new Command();
 
+function showDeprecationWarning(): void {
+  console.log(chalk.yellow('⚠️  DEPRECATION NOTICE'));
+  console.log(chalk.yellow('━'.repeat(50)));
+  console.log(chalk.yellow('The postman2insomnia CLI tool is now public as a short-term'));
+  console.log(chalk.yellow('workaround while this functionality moves into the Insomnia'));
+  console.log(chalk.yellow('product. Though this tool will likely remain'));
+  console.log(chalk.yellow('public, we of course advise moving to the core product'));
+  console.log(chalk.yellow('functionality as soon as it meets your needs.'));
+  console.log(chalk.yellow('━'.repeat(50)));
+  console.log('');
+}
+
 /**
  * Enhanced CLI Options Interface with Transform Support
  */
@@ -59,8 +71,11 @@ interface CliOptions {
   /** Add collection name as containing folder for all items */
   useCollectionFolder?: boolean;
 
-  /** Add flga to use experimental rules */
+  /** Flag to use experimental rules */
   experimental?: boolean;
+
+  /** Flag to supress deprecation warnings */
+  quiet?: boolean;
 }
 
 // =============================================================================
@@ -96,6 +111,9 @@ program
   // Apply experimental rules
   .option('--experimental', 'Enable experimental transform rules (not confirmed by Insomnia team)', false)
 
+  // Handle deprecation warnings
+  .option('--quiet', 'Suppress deprecation warning', false)
+
   // Main action handler - this is where the actual work happens
   .action(async (inputs: string[], options: CliOptions) => {
     try {
@@ -108,6 +126,13 @@ program
         console.log(chalk.green(`✅ Sample configuration generated at: ${options.generateConfig}`));
         console.log(chalk.blue('Edit this file to customize transformation rules.'));
         process.exit(0);
+      }
+
+      // =======================================================================
+      // SHOW DEPRECATION WARNING
+      // =======================================================================
+      if (!options.quiet) {
+        showDeprecationWarning();
       }
 
       // =======================================================================
