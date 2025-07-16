@@ -1,5 +1,7 @@
 # Postman to Insomnia CLI Converter
 
+> **⚠️ Important Notice**: The Postman2Insomnia repo is now public as a short-term workaround while this functionality moves into the Insomnia. Though this repo will likely remain public, we of course advise moving to the core product functionality as soon as it meets your needs.
+
 A powerful command-line tool that converts Postman collections and environments to Insomnia v5 YAML format with advanced script compatibility features and flexible folder organization. This tool was built by extracting and adapting the core conversion logic from Insomnia's UI codebase to create a standalone CLI utility.
 
 ## Features
@@ -212,6 +214,7 @@ postman2insomnia collection.json --config-file ./transforms.json
 | `--generate-config <path>` | | Generate sample transform configuration | |
 | `--help` | `-h` | Show help | |
 | `--version` | `-V` | Show version | |
+| `--quiet` | | Suppress deprecation warning | `false` |
 
 *_**Note**: `--use-collection-folder` currently defaults to `false` for backward compatibility. In a future major version, this will become the default behavior to better match how Insomnia UI performs conversions._
 
