@@ -133,7 +133,6 @@ converted/
 !.yarn/versions
 
 # NPM
-package-lock.json*
 .npmrc
 
 # TypeScript

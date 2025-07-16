@@ -1,12 +1,5 @@
 import { isPostmanEnvironment, convertPostmanEnvironment } from '../../src/converter';
-
-// Define a simple type for the Insomnia resource for cleaner tests
-interface InsomniaResource {
-  _id: string;
-  _type: string;
-  data?: any;
-  [key: string]: any;
-}
+import { InsomniaEnvironment } from '../../src/types/insomnia-v5.types';
 
 describe('isPostmanEnvironment', () => {
 
@@ -101,8 +94,17 @@ describe('convertPostmanEnvironment', () => {
       ],
     };
 
+
     const result = convertPostmanEnvironment(postmanEnv);
-    const insomniaEnv = result.find((item: InsomniaResource) => item._type === 'environment');
+    const insomniaEnv = result.find(
+      (item): item is InsomniaEnvironment => item._type === 'environment'
+    );
+
+    expect(insomniaEnv).toBeDefined();
+
+    if (!insomniaEnv || insomniaEnv._type !== 'environment') {
+      throw new Error('Expected an InsomniaEnvironment but did not find one');
+    }
 
     expect(insomniaEnv.data).toEqual({
       host: 'https://api.test.com',
@@ -123,8 +125,14 @@ describe('convertPostmanEnvironment', () => {
     };
 
     const result = convertPostmanEnvironment(postmanEnv);
-    const insomniaEnv = result.find((item: InsomniaResource) => item._type === 'environment');
+    const insomniaEnv = result.find(
+      (item): item is InsomniaEnvironment => item._type === 'environment'
+    );
+    expect(insomniaEnv).toBeDefined();
 
+    if (!insomniaEnv || insomniaEnv._type !== 'environment') {
+      throw new Error('Expected an InsomniaEnvironment but did not find one');
+    }
     expect(insomniaEnv.data).toEqual({});
   });
 
@@ -136,7 +144,15 @@ describe('convertPostmanEnvironment', () => {
     };
 
     const result = convertPostmanEnvironment(postmanEnv);
-    const insomniaEnv = result.find((item: InsomniaResource) => item._type === 'environment');
+    const insomniaEnv = result.find(
+      (item): item is InsomniaEnvironment => item._type === 'environment'
+    );
+
+    expect(insomniaEnv).toBeDefined();
+
+    if (!insomniaEnv || insomniaEnv._type !== 'environment') {
+      throw new Error('Expected an InsomniaEnvironment but did not find one');
+    }
 
     expect(insomniaEnv.data).toEqual({});
   });

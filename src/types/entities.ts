@@ -11,7 +11,7 @@
 // ORIGIN: Adapted from Insomnia's internal type definitions
 // PURPOSE: Provides type safety for the conversion pipeline
 // =============================================================================
-
+import type { TransformEngine } from '../transform-engine';
 /**
  * Base interface for items that can have comments/descriptions
  * Used throughout the system for documentation fields
@@ -29,7 +29,20 @@ export interface Comment {
  * - {{ apiKey }}
  * - {{ _['api-key'] }} (for variables with hyphens)
  */
-export type Variable = `{{ ${string} }}`;
+//export type Variable = `{{ ${string} }}`;
+/**
+ * Variable definition for template substitution
+ */
+interface Variable {
+  /** Variable name/key */
+  name: string;
+  /** Variable value */
+  value: string | number | boolean;
+  /** Whether the variable is enabled */
+  enabled?: boolean;
+  /** Variable description */
+  description?: string;
+}
 
 /**
  * Authentication configuration for requests and request groups
@@ -174,7 +187,7 @@ export interface Header extends Comment {
   disabled?: boolean;
 
   /** Header value (string or template variable) */
-  value: any;
+  value: string;
 }
 
 /**
@@ -230,8 +243,10 @@ export interface ImportRequest extends Comment {
   cookies?: Cookie[];
 
   /** Environment variables (environments only) */
-  environment?: {};
+  environment?: Record<string, unknown>;
 
+  /** Environment property ordering (request groups only) */
+  environmentPropertyOrder?: Record<string, unknown>;
   /** HTTP headers (requests only) */
   headers?: Header[];
 
@@ -257,7 +272,7 @@ export interface ImportRequest extends Comment {
   parentId?: string | null;
 
   /** Variables defined at this level */
-  variable?: any;
+  variable?: Record<string, string | number | boolean> | Variable[];
 
   /** Query string parameters (alternative to parameters) */
   queryString?: QueryString[];
@@ -309,7 +324,7 @@ type ConvertResult = ImportRequest[] | ConvertErrorResult | null;
  */
 export type Converter = (
   rawData: string,
-  transformEngine?: any,
+  transformEngine?: TransformEngine,
   useCollectionFolder?: boolean
 ) => ConvertResult | Promise<ConvertResult>;
 

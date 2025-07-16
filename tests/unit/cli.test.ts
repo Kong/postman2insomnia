@@ -608,34 +608,6 @@ describe('CLI with Transform Support', () => {
         console.warn('CLI batch transforms test failed - transform options not recognized');
       }
     });
-
-    test('should handle merge with transforms', async () => {
-      if (!cliPath) {
-        console.warn('CLI source not found, skipping merge transforms test');
-        return;
-      }
-
-      const collection1 = createSimpleCollection('Merge Collection 1');
-      const collection2 = createSimpleCollection('Merge Collection 2');
-      const file1 = createTestFile('merge1.json', collection1);
-      const file2 = createTestFile('merge2.json', collection2);
-      const outputDir = path.join(tempDir, 'merge-output');
-
-      const { stdout, stderr, code } = await runCli([
-        file1,
-        file2,
-        '--merge',
-        '--preprocess',
-        '--postprocess',
-        '--output', outputDir
-      ]);
-
-      if (!stderr.includes('unknown option')) {
-        expect(true).toBe(true);
-      } else {
-        console.warn('CLI merge transforms test failed - options not recognized');
-      }
-    });
   });
 
   // ==========================================================================

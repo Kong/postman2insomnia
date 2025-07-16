@@ -1,13 +1,5 @@
 // =============================================================================
-// POSTMAN COLLECTION CONVERTER - UUID FORMAT FIX
-// =============================================================================
-// UPDATED: Generate proper UUID-style IDs that match Insomnia v5 format
-// instead of __TYPE_hash_counter__ format
-// =============================================================================
-// =============================================================================
-// Updated postman converter with transform support
-// =============================================================================
-// Replace the translateHandlersInScript function with transform-aware version
+// POSTMAN COLLECTION CONVERTER
 // =============================================================================
 
 import { CONTENT_TYPE_JSON, CONTENT_TYPE_PLAINTEXT, CONTENT_TYPE_XML, fakerFunctions, forceBracketNotation } from './converter';
@@ -18,7 +10,7 @@ import type {
   Converter as EntityConverter,
   ImportRequest as EntityImportRequest,
   Parameter as EntityParameter,
-  Authentication as EntityAuthentication
+  Header,
 } from './types/entities';
 
 import type {
@@ -48,26 +40,54 @@ import type {
   UrlEncodedParameter as V210UrlEncodedParameter,
 } from './types/postman-2.1.types';
 
-// All existing type definitions remain the same...
+// =============================================================================
+// TYPE DEFINITIONS FOR PROPER TYPING
+// =============================================================================
+
+/**
+ * Postman event structure for scripts
+ */
+interface PostmanEvent {
+  listen: string;
+  script?: {
+    exec?: string | string[];
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+/**
+ * Postman GraphQL body structure
+ */
+interface PostmanGraphQL {
+  query?: string;
+  variables?: string;
+  [key: string]: unknown;
+}
+
+// =============================================================================
+// EXISTING TYPE ALIASES
+// =============================================================================
+
 export const id = 'postman';
 export const name = 'Postman';
 export const description = 'Importer for Postman collections';
 
 type PostmanCollection = V200Schema | V210Schema;
 type EventList = V200EventList | V210EventList;
-type Authentication = V200Auth | V210Auth;
 type Body = V200Request1['body'] | V210Request1['body'];
 type UrlEncodedParameter = V200UrlEncodedParameter | V210UrlEncodedParameter;
 type FormParameter = V200FormParameter | V210FormParameter;
 type Item = V200Item | V210Item;
 type Folder = V200Folder | V210Folder;
-type Header = V200Header | V210Header;
 
 type ImportRequest = EntityImportRequest;
 type Parameter = EntityParameter;
-type AuthTypeOAuth2 = EntityAuthentication;
 
-// Existing UUID generation class (unchanged)
+// =============================================================================
+// UUID GENERATION CLASS
+// =============================================================================
+
 class UUIDGenerator {
   private fileHash: string;
   private baseTime: number;
@@ -111,7 +131,10 @@ class UUIDGenerator {
   }
 }
 
-// Existing faker transformation functions (unchanged)
+// =============================================================================
+// FAKER TRANSFORMATION FUNCTIONS
+// =============================================================================
+
 const fakerTags = Object.keys(fakerFunctions);
 const postmanTagRegexs = fakerTags.map(tag => ({
   tag,
@@ -184,7 +207,10 @@ export function translateHandlersInScript(
   return translated;
 }
 
-// Existing schema URLs and helper functions (unchanged)
+// =============================================================================
+// SCHEMA URLS AND HELPER FUNCTIONS
+// =============================================================================
+
 const POSTMAN_SCHEMA_URLS_V2_0 = [
   'https://schema.getpostman.com/json/collection/v2.0.0/collection.json',
   'https://schema.postman.com/json/collection/v2.0.0/collection.json',
@@ -194,16 +220,6 @@ const POSTMAN_SCHEMA_URLS_V2_1 = [
   'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
   'https://schema.postman.com/json/collection/v2.1.0/collection.json',
 ];
-
-const mapGrantTypeToInsomniaGrantType = (grantType: string) => {
-  if (grantType === 'authorization_code_with_pkce') {
-    return 'authorization_code';
-  }
-  if (grantType === 'password_credentials') {
-    return 'password';
-  }
-  return grantType || 'authorization_code';
-};
 
 // =============================================================================
 // ENHANCED IMPORTPOSTMAN CLASS WITH TRANSFORM SUPPORT
@@ -258,13 +274,13 @@ export class ImportPostman {
     return result;
   };
 
-  // ENHANCED: Script processing with transform engine support
+  // Script processing with transform engine support
   importPreRequestScript = (events: EventList | undefined): string => {
     if (events == null) {
       return '';
     }
 
-    const preRequestEvent = events.find((event: any) => event.listen === 'prerequest');
+    const preRequestEvent = events.find((event: PostmanEvent) => event.listen === 'prerequest');
     const scriptOrRows = preRequestEvent != null ? preRequestEvent.script : '';
     if (scriptOrRows == null || scriptOrRows === '') {
       return '';
@@ -286,7 +302,7 @@ export class ImportPostman {
       return '';
     }
 
-    const afterResponseEvent = events.find((event: any) => event.listen === 'test');
+    const afterResponseEvent = events.find((event: PostmanEvent) => event.listen === 'test');
     const scriptOrRows = afterResponseEvent ? afterResponseEvent.script : '';
     if (!scriptOrRows) {
       return '';
@@ -302,7 +318,6 @@ export class ImportPostman {
     return translateHandlersInScript(scriptContent, this.transformEngine);
   };
 
-  // All other existing methods remain exactly the same...
   importRequestItem = ({ request, name = '', event }: Item, parentId: string): ImportRequest => {
     if (typeof request === 'string') {
       return {
@@ -315,7 +330,7 @@ export class ImportPostman {
       };
     }
 
-    const { authentication, headers } = this.importAuthentication(request.auth, request.header as Header[]);
+    const { authentication, headers } = this.importAuthentication(request.auth, request.header as V200Header[] | V210Header[]);
 
     let parameters: Parameter[] = [];
     if (typeof request.url === 'object' && request.url?.query) {
@@ -327,7 +342,7 @@ export class ImportPostman {
     const body = this.importBody(request.body);
 
     if (
-      !headers.find(({ key }: any) => key.toLowerCase() === 'content-type') &&
+      !headers.find(h => this.isContentTypeHeader(h)) &&
       typeof body === 'object' &&
       body?.mimeType
     ) {
@@ -335,7 +350,7 @@ export class ImportPostman {
       headers.push({
         key: 'Content-Type',
         value: contentType,
-      } as any);
+      } as V200Header);
     }
 
     return {
@@ -347,11 +362,10 @@ export class ImportPostman {
       url: transformPostmanToNunjucksString(this.importUrl(request.url)),
       parameters: parameters,
       method: request.method || 'GET',
-      headers: headers.map(({ key, value, disabled, description }: any) => ({
-        name: transformPostmanToNunjucksString(key),
+      headers: headers.map(h => this.convertPostmanToEntityHeader(h)).map(({ name, value, disabled }) => ({
+        name: transformPostmanToNunjucksString(name),
         value: transformPostmanToNunjucksString(value),
         ...(disabled !== undefined ? { disabled } : {}),
-        ...(description !== undefined ? { description } : {}),
       })),
       body,
       authentication,
@@ -397,6 +411,7 @@ export class ImportPostman {
       authentication,
     };
   };
+
   importCollection = (): ImportRequest[] => {
     const {
       item,
@@ -427,7 +442,7 @@ export class ImportPostman {
     }
 
     if (this.addCollectionFolder) {
-      // NEW BEHAVIOR: Create intermediate folder with collection name
+      // Create intermediate folder with collection name
       const intermediateFolder: ImportRequest = {
         parentId: collectionFolder._id,
         _id: this.uuidGenerator.generateGroupId(),
@@ -442,7 +457,7 @@ export class ImportPostman {
       const importedItems = this.importItems(item, intermediateFolder._id!);
       return [collectionFolder, intermediateFolder, ...importedItems];
     } else {
-      // ORIGINAL BEHAVIOR: Direct children
+      // : Direct children
       const importedItems = this.importItems(item, collectionFolder._id!);
       return [collectionFolder, ...importedItems];
     }
@@ -474,7 +489,7 @@ export class ImportPostman {
     }
 
     if (body.mode === 'graphql') {
-      return this.importBodyGraphQL(body.graphql);
+      return this.importBodyGraphQL(body.graphql as PostmanGraphQL);
     }
     if (body.mode === 'formdata') {
       return this.importBodyFormdata(body.formdata || []);
@@ -484,20 +499,23 @@ export class ImportPostman {
     }
     if (body.mode === 'raw') {
       const rawOptions = body.options?.raw as { language: string };
-      return this.importBodyRaw(body.raw, rawOptions?.language || '');
+      const result = this.importBodyRaw(body.raw, rawOptions?.language || '');
+      return result;
     }
 
     return {};
   };
 
-  importBodyGraphQL = (graphql: any): ImportRequest['body'] => {
+  importBodyGraphQL = (graphql: PostmanGraphQL): ImportRequest['body'] => {
     if (!graphql) {
       return {};
     }
 
     const query = graphql.query || '';
     const variables = graphql.variables || '';
-
+    if (!query && !variables) {
+      return {};
+    }
     return {
       mimeType: 'application/graphql',
       text: JSON.stringify({
@@ -559,7 +577,7 @@ export class ImportPostman {
   };
 
   importBodyRaw = (raw: string | undefined, language: string): ImportRequest['body'] => {
-    if (!raw) {
+    if (!raw || raw.trim() === '') {
       return {};
     }
 
@@ -577,14 +595,21 @@ export class ImportPostman {
     };
   };
 
-  importAuthentication = (auth?: V200Auth | V210Auth | null, headers: Header[] = []): { authentication: any; headers: Header[] } => {
+  importAuthentication = (
+    auth?: V200Auth | V210Auth | null,
+    headers: (V200Header | V210Header)[] = []
+  ): { authentication: Record<string, unknown>; headers: (V200Header | V210Header)[] } => {
     const authHeaders = [...headers];
-    let authentication: any = {};
+    let authentication: Record<string, unknown> = {};
 
-    // Check for auth in headers first
-    const authHeader = headers.find(h => h.key?.toLowerCase() === 'authorization');
-    if (authHeader && typeof authHeader.value === 'string') {
-      const authValue = authHeader.value;
+    // Check for auth in headers first - safely access properties
+    const authHeaderIndex = headers.findIndex(h => {
+      const headerKey = (h as { key?: string }).key;
+      return headerKey && typeof headerKey === 'string' && headerKey.toLowerCase() === 'authorization';
+    });
+
+    if (authHeaderIndex !== -1) {
+      const authValue = (headers[authHeaderIndex] as { value?: string }).value || '';
 
       if (authValue.startsWith('Bearer ')) {
         authentication = {
@@ -592,25 +617,22 @@ export class ImportPostman {
           token: authValue.substring(7),
           disabled: false
         };
-        // Remove auth header since it's now handled by authentication
-        const index = authHeaders.findIndex(h => h.key?.toLowerCase() === 'authorization');
-        if (index > -1) authHeaders.splice(index, 1);
+        authHeaders.splice(authHeaderIndex, 1);
+
       } else if (authValue.startsWith('Basic ')) {
         authentication = {
           type: 'basic',
           useISO88591: false,
           disabled: false
         };
-        // Remove auth header since it's now handled by authentication
-        const index = authHeaders.findIndex(h => h.key?.toLowerCase() === 'authorization');
-        if (index > -1) authHeaders.splice(index, 1);
+        authHeaders.splice(authHeaderIndex, 1);
       }
     }
 
     // Handle explicit auth object
     if (auth && auth.type !== 'noauth') {
       switch (auth.type) {
-        case 'bearer':
+        case 'bearer': {
           const bearerAuth = auth.bearer as V210Auth1[];
           const tokenField = bearerAuth?.find(field => field.key === 'token');
           authentication = {
@@ -619,8 +641,9 @@ export class ImportPostman {
             disabled: false
           };
           break;
+        }
 
-        case 'basic':
+        case 'basic': {
           const basicAuth = auth.basic as V210Auth1[];
           const usernameField = basicAuth?.find(field => field.key === 'username');
           const passwordField = basicAuth?.find(field => field.key === 'password');
@@ -632,8 +655,9 @@ export class ImportPostman {
             disabled: false
           };
           break;
+        }
 
-        case 'apikey':
+        case 'apikey': {
           const apikeyAuth = auth.apikey as V210Auth1[];
           const keyField = apikeyAuth?.find(field => field.key === 'key');
           const valueField = apikeyAuth?.find(field => field.key === 'value');
@@ -646,11 +670,11 @@ export class ImportPostman {
             disabled: false
           };
           break;
+        }
 
-        case 'oauth2':
+        case 'oauth2': {
           const oauth2Auth = auth.oauth2 as V210Auth1[];
           const accessTokenField = oauth2Auth?.find(field => field.key === 'accessToken');
-          const tokenTypeField = oauth2Auth?.find(field => field.key === 'tokenType');
           authentication = {
             type: 'oauth2',
             grantType: 'authorization_code',
@@ -663,6 +687,7 @@ export class ImportPostman {
             disabled: false
           };
           break;
+        }
 
         case 'oauth1':
           authentication = {
@@ -678,7 +703,7 @@ export class ImportPostman {
           };
           break;
 
-        case 'digest':
+        case 'digest': {
           const digestAuth = auth.digest as V210Auth1[];
           const digestUsernameField = digestAuth?.find(field => field.key === 'username');
           const digestPasswordField = digestAuth?.find(field => field.key === 'password');
@@ -689,6 +714,7 @@ export class ImportPostman {
             disabled: false
           };
           break;
+        }
 
         default:
           authentication = { disabled: false };
@@ -700,11 +726,27 @@ export class ImportPostman {
       headers: authHeaders
     };
   };
+  private convertPostmanToEntityHeader(postmanHeader: V200Header | V210Header): Header {
+    return {
+      name: (postmanHeader as { key?: string }).key || '',
+      value: String((postmanHeader as { value?: unknown }).value || ''),
+      disabled: (postmanHeader as { disabled?: boolean }).disabled,
+    };
+  }
+
+  /**
+   * Checks if a Postman header is a content-type header
+   */
+  private isContentTypeHeader(header: V200Header | V210Header): boolean {
+    const key = (header as { key?: string }).key;
+    return key ? key.toLowerCase() === 'content-type' : false;
+  }
 }
 
 // =============================================================================
 // ENHANCED MAIN CONVERTER EXPORT FUNCTION
 // =============================================================================
+
 export const convert: EntityConverter = (rawData: string, transformEngine?: TransformEngine, addCollectionFolder?: boolean) => {
   try {
     const collection = JSON.parse(rawData) as PostmanCollection;
@@ -718,7 +760,7 @@ export const convert: EntityConverter = (rawData: string, transformEngine?: Tran
         collection,
         rawData,
         transformEngine,
-        addCollectionFolder || false // Add this parameter
+        addCollectionFolder || false
       ).importCollection();
 
       const now = Date.now();

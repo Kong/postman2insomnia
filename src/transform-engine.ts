@@ -5,7 +5,6 @@
 // =============================================================================
 
 import * as fs from 'fs';
-import * as path from 'path';
 
 // =============================================================================
 // TRANSFORM RULE TYPES
@@ -130,7 +129,7 @@ export const DEFAULT_PREPROCESS_RULES: TransformRule[] = [
   {
     name: "responseBody-to-response",
     description: "Convert responseBody to pm.response.text()",
-    pattern: /(?<![\$\.])\bresponseBody\b(?!\$)/g,
+    pattern: /(?<![$.])\bresponseBody\b(?!\$)/g,
     replacement: "pm.response.text()",
     enabled: true
   },
@@ -408,18 +407,16 @@ export function translateHandlersInScriptWithTransforms(
   return translated;
 }
 
-// =============================================================================
-// CLI INTEGRATION TYPES
-// =============================================================================
-
-export interface ConversionOptionsWithTransforms {
-  outputDir: string;
-  format: 'yaml' | 'json';
-  merge: boolean;
-  verbose: boolean;
-  preprocess?: boolean;
-  postprocess?: boolean;
-  configFile?: string;
+/**
+ * Configuration with comments structure
+ */
+interface ConfigWithComments {
+  _comment: string;
+  _description: string;
+  _documentation: Record<string, string>;
+  preprocess: TransformRule[];
+  postprocess: TransformRule[];
+  _experimental_notice?: string;
 }
 
 // =============================================================================
@@ -431,7 +428,7 @@ export function generateSampleConfig(outputPath: string, includeExperimental: bo
     postprocess: DEFAULT_POSTPROCESS_RULES
   };
 
-  const configWithComments: any = {
+  const configWithComments: ConfigWithComments = {
     "_comment": "Transform Configuration - Generated from Default Rules",
     "_description": "Customize preprocessing and postprocessing rules for Postman to Insomnia conversion",
     "_documentation": {

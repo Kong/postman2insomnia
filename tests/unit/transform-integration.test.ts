@@ -114,7 +114,6 @@ describe('Transform Integration Tests', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true,
         configFile: configFile
@@ -211,7 +210,6 @@ describe('Transform Integration Tests', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true,
         configFile: configFile
@@ -317,7 +315,6 @@ describe('Transform Integration Tests', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         postprocess: true,
         configFile: configFile
@@ -408,7 +405,6 @@ describe('Transform Integration Tests', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         postprocess: true,
         configFile: configFile
@@ -524,7 +520,6 @@ describe('Transform Integration Tests', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true,
         postprocess: true,
@@ -641,7 +636,6 @@ describe('Transform Integration Tests', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true,
         postprocess: true,
@@ -718,7 +712,6 @@ describe('Transform Integration Tests', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true,
         configFile: configFile
@@ -756,7 +749,6 @@ describe('Transform Integration Tests', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true,
         configFile: nonExistentConfig
@@ -797,7 +789,6 @@ describe('Transform Integration Tests', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true,
         postprocess: true
@@ -890,7 +881,6 @@ describe('Transform Integration Tests', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         postprocess: true,
         configFile: configFile
@@ -998,7 +988,6 @@ describe('Transform Integration Tests', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true,
         postprocess: true,
@@ -1186,7 +1175,6 @@ describe('Transform Integration Tests', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: true,
         preprocess: true,
         postprocess: true,
@@ -1380,7 +1368,6 @@ describe('Transform Integration Tests', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true,
         postprocess: true,
