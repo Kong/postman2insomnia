@@ -65,7 +65,7 @@ The tool now includes enhanced built-in rules:
 
 ```bash
 # Install globally from npm
-npm install -g postman-to-insomnia-cli
+npm install -g postman2insomnia
 ```
 
 After installation, you can use `postman2insomnia` from anywhere:
@@ -571,42 +571,6 @@ Example configuration:
     }
   ]
 }
-```
-
-### CI/CD Integration
-
-```yaml
-# GitHub Actions example
-name: Convert Postman Collections
-jobs:
-  convert:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Install converter
-        run: |
-          git clone <this-repo-url>
-          cd postman-to-insomnia-cli
-          npm install && npm run build
-          npm install -g .
-
-      - name: Convert collections
-        run: |
-          postman2insomnia postman-exports/*.json \
-            --use-collection-folder \
-            --preprocess --postprocess \
-            --output ./insomnia-collections \
-            --verbose
-
-      - name: Upload converted files
-        uses: actions/upload-artifact@v3
-        with:
-          name: insomnia-collections
-          path: ./insomnia-collections/
 ```
 
 ## How This Tool Was Created
