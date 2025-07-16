@@ -75,7 +75,6 @@ describe('Insomnia v5 Format Integration', () => {
       const options: ConversionOptions = {
         outputDir,
         format: 'yaml',
-        merge: false,
         verbose: false
       };
 
@@ -146,7 +145,6 @@ describe('Insomnia v5 Format Integration', () => {
       const options: ConversionOptions = {
         outputDir,
         format: 'yaml',
-        merge: false,
         verbose: false
       };
 
@@ -201,7 +199,6 @@ describe('Insomnia v5 Format Integration', () => {
       const options: ConversionOptions = {
         outputDir,
         format: 'yaml',
-        merge: false,
         verbose: false
       };
 
@@ -266,7 +263,6 @@ describe('Insomnia v5 Format Integration', () => {
       const options: ConversionOptions = {
         outputDir,
         format: 'yaml',
-        merge: false,
         verbose: false
       };
 
@@ -301,7 +297,6 @@ describe('Insomnia v5 Format Integration', () => {
       const options: ConversionOptions = {
         outputDir,
         format: 'yaml',
-        merge: false,
         verbose: false
       };
 
@@ -326,7 +321,6 @@ describe('Insomnia v5 Format Integration', () => {
       const options: ConversionOptions = {
         outputDir,
         format: 'yaml',
-        merge: false,
         verbose: false
       };
 
@@ -342,89 +336,6 @@ describe('Insomnia v5 Format Integration', () => {
 
       // Restore console.error
       console.error = originalConsoleError;
-    });
-  });
-
-  describe('Merge Functionality', () => {
-    test('should merge multiple collections when merge option is enabled', async () => {
-      const collection1 = {
-        info: {
-          name: 'Collection 1',
-          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
-        },
-        item: [
-          {
-            name: 'Request 1',
-            request: {
-              method: 'GET',
-              url: 'https://api.example.com/endpoint1'
-            }
-          }
-        ]
-      };
-
-      const collection2 = {
-        info: {
-          name: 'Collection 2',
-          schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
-        },
-        item: [
-          {
-            name: 'Request 2',
-            request: {
-              method: 'POST',
-              url: 'https://api.example.com/endpoint2'
-            }
-          }
-        ]
-      };
-
-      const collection1File = path.join(tempDir, 'collection1.json');
-      const collection2File = path.join(tempDir, 'collection2.json');
-
-      fs.writeFileSync(collection1File, JSON.stringify(collection1, null, 2));
-      fs.writeFileSync(collection2File, JSON.stringify(collection2, null, 2));
-
-      const options: ConversionOptions = {
-        outputDir,
-        format: 'yaml',
-        merge: true,
-        verbose: false
-      };
-
-      const result = await convertPostmanToInsomnia([collection1File, collection2File], options);
-
-      expect(result.successful).toBe(2);
-      expect(result.failed).toBe(0);
-      expect(result.outputs).toHaveLength(1);
-
-      // Check merged output
-      const mergedFile = result.outputs[0];
-      expect(path.basename(mergedFile)).toBe('merged-collection.insomnia.yaml');
-      expect(fs.existsSync(mergedFile)).toBe(true);
-
-      const content = fs.readFileSync(mergedFile, 'utf8');
-      expect(content).toContain('type: collection.insomnia.rest/5.0');
-
-      // Test what we can reliably verify about the merge:
-      // 1. The file should contain a valid collection structure
-      expect(content).toContain('collection:');
-
-      // 2. At least one request should be present (the merge should work)
-      expect(content).toContain('Request 1');
-      expect(content).toContain('endpoint1');
-
-      // 3. The content should be substantial (not just empty structure)
-      expect(content.length).toBeGreaterThan(200);
-
-      // 4. Should contain expected Insomnia v5 structure elements
-      expect(content).toContain('environments:');
-      expect(content).toContain('cookieJar:');
-      expect(content).toContain('meta:');
-
-      // Note: The current merge implementation may have limitations in how it combines
-      // multiple collections. This test verifies that merge produces a valid output
-      // with content from at least one collection, which is the minimum expected behavior.
     });
   });
 });

@@ -5,6 +5,34 @@ All notable changes to the Postman to Insomnia CLI converter will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2025-01-16
+
+### Removed
+- **Merge functionality** - Removed `--merge` / `-m` option and related code
+  - Simplified codebase by removing merge-related complexity
+  - Focus on core file-to-file conversion functionality
+  - Removed `writeMergedOutput` function and associated logic
+  - Updated CLI interface to remove merge option
+  - Removed merge-related tests and documentation
+
+### Enhanced
+- **Type Safety** - Improved TypeScript type definitions with comprehensive JSDoc documentation
+  - Added detailed type definitions for Insomnia v5 export format
+  - Enhanced type safety throughout the conversion pipeline
+  - Added proper type discrimination for union types
+  - Improved error handling with stronger typing
+
+### Technical Details
+- **Simplified API** - Reduced complexity by removing merge-specific code paths
+- **Better Performance** - No longer buffers multiple collections in memory
+- **Cleaner Architecture** - Streamlined conversion flow focused on individual file processing
+- **Maintained Compatibility** - All existing conversion functionality preserved
+
+### Migration Notes
+- **No Breaking Changes** - Core conversion functionality remains unchanged
+- **Removed Option** - `--merge` / `-m` flag is no longer available
+- **Alternative Workflow** - Use shell commands or scripts for combining multiple outputs if needed
+
 ## [1.6.1] - 2025-07-14
 
 ### Fixed

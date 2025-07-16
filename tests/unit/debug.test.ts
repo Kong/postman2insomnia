@@ -125,7 +125,6 @@ describe('Full Pipeline Debugging', () => {
       const result = await convertPostmanToInsomnia([inputFile], {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: true,
         preprocess: true,
         postprocess: true

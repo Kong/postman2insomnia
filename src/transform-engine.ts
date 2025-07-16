@@ -407,20 +407,6 @@ export function translateHandlersInScriptWithTransforms(
   return translated;
 }
 
-// =============================================================================
-// CLI INTEGRATION TYPES
-// =============================================================================
-
-export interface ConversionOptionsWithTransforms {
-  outputDir: string;
-  format: 'yaml' | 'json';
-  merge: boolean;
-  verbose: boolean;
-  preprocess?: boolean;
-  postprocess?: boolean;
-  configFile?: string;
-}
-
 /**
  * Configuration with comments structure
  */

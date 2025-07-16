@@ -12,7 +12,7 @@
 // USAGE:
 //   postman2insomnia [options] <input-files...>
 //   postman2insomnia collection.json -o ./output -v
-//   postman2insomnia *.json --merge --verbose --preprocess --postprocess
+//   postman2insomnia *.json --verbose --preprocess --postprocess
 // =============================================================================
 
 import { Command } from 'commander';
@@ -40,9 +40,6 @@ interface CliOptions {
 
   /** Output format - currently only YAML is supported (JSON was planned but not implemented) */
   format: 'yaml' | 'json';
-
-  /** Whether to merge all collections into a single output file */
-  merge: boolean;
 
   /** Enable verbose logging for debugging and detailed output */
   verbose: boolean;
@@ -85,7 +82,6 @@ program
   // CLI Options with defaults and descriptions
   .option('-o, --output <dir>', 'Output directory', './output')
   .option('-f, --format <format>', 'Output format (yaml|json)', 'yaml')
-  .option('-m, --merge', 'Merge all collections into a single file', false)
   .option('-v, --verbose', 'Verbose output', false)
 
   // Transform options
@@ -157,7 +153,6 @@ program
       const results = await convertPostmanToInsomnia(files, {
         outputDir,
         format: options.format,
-        merge: options.merge,
         verbose: options.verbose,
         preprocess: options.preprocess,
         postprocess: options.postprocess,

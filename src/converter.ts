@@ -70,7 +70,6 @@ interface Variable {
 export interface ConversionOptions {
   outputDir: string;
   format: 'yaml' | 'json';
-  merge: boolean;
   verbose: boolean;
   preprocess?: boolean;
   postprocess?: boolean;
@@ -254,7 +253,7 @@ export async function convertPostmanToInsomnia(
     }
   }
 
-  const allCollections: ImportRequest[] = [];
+  // const allCollections: ImportRequest[] = [];
 
   for (const file of files) {
     try {
@@ -307,16 +306,12 @@ export async function convertPostmanToInsomnia(
         continue;
       }
 
-      if (options.merge) {
-        allCollections.push(...converted);
-      } else {
-        const insomniaData: InsomniaV5Export = convertToInsomniaV5Format(converted, path.basename(file, '.json'));
-        const outputPath = await writeOutput(insomniaData, file, options);
-        result.outputs.push(outputPath);
+      const insomniaData: InsomniaV5Export = convertToInsomniaV5Format(converted, path.basename(file, '.json'));
+      const outputPath = await writeOutput(insomniaData, file, options);
+      result.outputs.push(outputPath);
 
-        if (options.verbose) {
-          console.log(chalk.green(`✅ Converted: ${path.basename(outputPath)}`));
-        }
+      if (options.verbose) {
+        console.log(chalk.green(`✅ Converted: ${path.basename(outputPath)}`));
       }
 
       result.successful++;
@@ -326,12 +321,6 @@ export async function convertPostmanToInsomnia(
         error instanceof Error ? error.message : error);
       result.failed++;
     }
-  }
-
-  if (options.merge && allCollections.length > 0) {
-    const mergedData = convertToInsomniaV5Format(allCollections, 'Merged Collection');
-    const outputPath = await writeMergedOutput(mergedData, options);
-    result.outputs.push(outputPath);
   }
 
   return result;
@@ -585,25 +574,6 @@ async function writeOutput(
     });
   } else {
     content = JSON.stringify(insomniaData, null, 2);
-  }
-
-  fs.writeFileSync(outputFile, content, 'utf8');
-  return outputFile;
-}
-
-async function writeMergedOutput(data: ImportRequest, options: ConversionOptions): Promise<string> {
-  const extension = options.format === 'yaml' ? 'yaml' : 'json';
-  const outputFile = path.join(options.outputDir, `merged-collection.insomnia.${extension}`);
-
-  let content: string;
-  if (options.format === 'yaml') {
-    content = yaml.dump(data, {
-      indent: 2,
-      lineWidth: -1,
-      noRefs: true
-    });
-  } else {
-    content = JSON.stringify(data, null, 2);
   }
 
   fs.writeFileSync(outputFile, content, 'utf8');

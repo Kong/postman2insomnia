@@ -66,7 +66,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true,
         postprocess: true
@@ -91,7 +90,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true,
         postprocess: true
@@ -145,7 +143,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true
       };
@@ -217,7 +214,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true,
         configFile: configFile
@@ -244,7 +240,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true
       };
@@ -298,7 +293,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         postprocess: true
       };
@@ -366,7 +360,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         postprocess: true,
         configFile: configFile
@@ -437,7 +430,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true,
         postprocess: true
@@ -508,7 +500,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true,
         postprocess: true
@@ -566,7 +557,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'json', // Use JSON for easier ID extraction
-        merge: false,
         verbose: false,
         preprocess: true,
         postprocess: true
@@ -654,7 +644,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         postprocess: true,
         transformEngine: transformEngine
@@ -714,7 +703,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         postprocess: true,
         configFile: configFile
@@ -753,7 +741,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true,
         configFile: invalidConfigFile
@@ -797,7 +784,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false
       };
 
@@ -829,7 +815,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true
         // postprocess: undefined
@@ -855,7 +840,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         postprocess: true
         // preprocess: undefined
@@ -901,7 +885,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'json',
-        merge: false,
         verbose: false,
         preprocess: true,
         postprocess: true
@@ -968,7 +951,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         postprocess: true,
         experimental: true  // Experimental flag enabled
@@ -1023,7 +1005,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         postprocess: true,
         experimental: false  // Experimental flag disabled
@@ -1066,7 +1047,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: true,  // Enable verbose to see engine creation
         postprocess: true,
         experimental: true
@@ -1115,7 +1095,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         preprocess: true,
         experimental: true
@@ -1173,7 +1152,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         postprocess: true,
         experimental: true
@@ -1239,7 +1217,6 @@ describe('Converter with Transform Support', () => {
       const options: ConversionOptions = {
         outputDir: tempDir,
         format: 'yaml',
-        merge: false,
         verbose: false,
         postprocess: true,
         configFile: configFile,

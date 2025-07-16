@@ -8,7 +8,6 @@ A powerful command-line tool that converts Postman collections and environments 
 - **Converts Postman Collections** (v2.0 and v2.1) to Insomnia v5 YAML format
 - **Converts Postman Environments** (including globals) to Insomnia v5 YAML format
 - **Batch processing** of multiple files with glob pattern support
-- **Merge multiple collections** into a single output file
 - **Preserves folder structure** and request organization
 - **Handles authentication** methods (Basic, Bearer, OAuth, API Key, etc.)
 - **Maintains variables** and environment data
@@ -53,7 +52,6 @@ The tool now includes enhanced built-in rules:
 - `fix-header-value-access` - Fix header value access patterns
 - `fix-request-headers-add` - Convert header addition methods
 - `fix-request-url-assignment` - Convert URL assignment syntax
-
 
 ### 🛠️ Script Processing
 - **Pre-request and post-response scripts** conversion from `pm.*` to `insomnia.*` syntax
@@ -169,9 +167,6 @@ postman2insomnia --generate-config ./sample-config.json
 # Nested structure with transforms
 postman2insomnia collection.json --use-collection-folder --preprocess --postprocess
 
-# Merge multiple collections with nested structure
-postman2insomnia col1.json col2.json env.json -m --use-collection-folder
-
 # Batch convert with nested structure and custom transforms
 postman2insomnia exports/*.json --use-collection-folder --preprocess --postprocess -o ./output -v
 
@@ -200,7 +195,6 @@ postman2insomnia collection.json --config-file ./transforms.json
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
 | `--output <dir>` | `-o` | Output directory | `./output` |
-| `--merge` | `-m` | Merge all collections into a single file | `false` |
 | `--verbose` | `-v` | Verbose output | `false` |
 | `--use-collection-folder` | | Add collection name as containing folder | `false`* |
 | `--experimental` | | Use the experimental pre and post processing rules as well as the defaults | `false`* |
@@ -298,13 +292,6 @@ postman2insomnia postman-exports/*.json \
   --config-file ./my-transforms.json \
   -o ./converted \
   -v
-
-# Merge into single file with nested structure
-postman2insomnia postman-exports/*.json \
-  --use-collection-folder \
-  --preprocess --postprocess \
-  --merge \
-  -o ./merged
 ```
 
 ### Enterprise Workflow
@@ -354,7 +341,7 @@ Consumer Finance (collection)
 
 The nested structure matches how Insomnia UI performs conversions and provides better organization for complex collections.
 
-## New Advanced Transform Configuration Examples
+## Advanced Transform Configuration Examples
 
 ### Advanced Transform Configuration
 
@@ -450,7 +437,7 @@ Continue using string patterns for:
 - **Legacy compatibility** with existing configurations
 - **Dynamic flag assignment** based on conditions
 
-## Section: Migration Guide
+## Migration Guide
 
 ### Migrating to v1.6.0
 
