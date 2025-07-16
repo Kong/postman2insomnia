@@ -61,11 +61,26 @@ The tool now includes enhanced built-in rules:
 
 ## Installation
 
-### Global Installation (Recommended)
+### From NPM (Recommended)
 
 ```bash
-# Clone or download this repository
-cd postman-to-insomnia-cli
+# Install globally from npm
+npm install -g postman2insomnia
+```
+
+After installation, you can use `postman2insomnia` from anywhere:
+
+```bash
+postman2insomnia --version
+postman2insomnia --help
+```
+
+### From GitHub Repository
+
+```bash
+# Clone the repository
+git clone https://github.com/KongHQ-CX/postman2insomnia.git
+cd postman2insomnia
 
 # Install dependencies
 npm install
@@ -77,19 +92,12 @@ npm run build
 npm install -g .
 ```
 
-After global installation, you can use `postman2insomnia` from anywhere:
-
-```bash
-postman2insomnia --version
-postman2insomnia --help
-```
-
 ### Local Development
 
 ```bash
 # Clone the repository
-git clone <repository-url>
-cd postman-to-insomnia-cli
+git clone https://github.com/KongHQ-CX/postman2insomnia.git
+cd postman2insomnia
 
 # Install dependencies
 npm install
@@ -97,7 +105,7 @@ npm install
 # Build the project
 npm run build
 
-# Run locally
+# Run locally (without global installation)
 node dist/cli.js <options>
 ```
 
@@ -563,42 +571,6 @@ Example configuration:
     }
   ]
 }
-```
-
-### CI/CD Integration
-
-```yaml
-# GitHub Actions example
-name: Convert Postman Collections
-jobs:
-  convert:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Install converter
-        run: |
-          git clone <this-repo-url>
-          cd postman-to-insomnia-cli
-          npm install && npm run build
-          npm install -g .
-
-      - name: Convert collections
-        run: |
-          postman2insomnia postman-exports/*.json \
-            --use-collection-folder \
-            --preprocess --postprocess \
-            --output ./insomnia-collections \
-            --verbose
-
-      - name: Upload converted files
-        uses: actions/upload-artifact@v3
-        with:
-          name: insomnia-collections
-          path: ./insomnia-collections/
 ```
 
 ## How This Tool Was Created
