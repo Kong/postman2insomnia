@@ -61,11 +61,26 @@ The tool now includes enhanced built-in rules:
 
 ## Installation
 
-### Global Installation (Recommended)
+### From NPM (Recommended)
 
 ```bash
-# Clone or download this repository
-cd postman-to-insomnia-cli
+# Install globally from npm
+npm install -g postman-to-insomnia-cli
+```
+
+After installation, you can use `postman2insomnia` from anywhere:
+
+```bash
+postman2insomnia --version
+postman2insomnia --help
+```
+
+### From GitHub Repository
+
+```bash
+# Clone the repository
+git clone https://github.com/KongHQ-CX/postman2insomnia.git
+cd postman2insomnia
 
 # Install dependencies
 npm install
@@ -77,19 +92,12 @@ npm run build
 npm install -g .
 ```
 
-After global installation, you can use `postman2insomnia` from anywhere:
-
-```bash
-postman2insomnia --version
-postman2insomnia --help
-```
-
 ### Local Development
 
 ```bash
 # Clone the repository
-git clone <repository-url>
-cd postman-to-insomnia-cli
+git clone https://github.com/KongHQ-CX/postman2insomnia.git
+cd postman2insomnia
 
 # Install dependencies
 npm install
@@ -97,7 +105,7 @@ npm install
 # Build the project
 npm run build
 
-# Run locally
+# Run locally (without global installation)
 node dist/cli.js <options>
 ```
 
