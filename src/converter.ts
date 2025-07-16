@@ -1,17 +1,36 @@
 // =============================================================================
-// POSTMAN TO INSOMNIA CONVERTER - UUID FORMAT FIX
-// =============================================================================
-// Updated to generate proper UUID-style IDs that match Insomnia v5 format
-// =============================================================================
-// =============================================================================
-// Updated converter with transform engine integration
+// POSTMAN TO INSOMNIA CONVERTER
 // =============================================================================
 
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
 import chalk from 'chalk';
-import { TransformEngine, translateHandlersInScriptWithTransforms } from './transform-engine';
+import { TransformEngine } from './transform-engine';
+import { PostmanEnvironment } from './types/postman-environment.types';
+import type {
+  HttpsSchemaGetpostmanComJsonCollectionV200 as PostmanCollectionV2,
+} from './types/postman-2.0.types';
+
+import type {
+  HttpsSchemaGetpostmanComJsonCollectionV210 as PostmanCollectionV21,
+} from './types/postman-2.1.types';
+import { ImportRequest } from './types/entities';
+import {
+  InsomniaWorkspace,
+  InsomniaEnvironment,
+  InsomniaV5Export,
+  InsomniaV5CollectionExport,
+  InsomniaV5CollectionItem,
+  InsomniaV5Request,
+  InsomniaV5RequestGroup,
+  InsomniaV5Header,
+  InsomniaV5Parameter,
+  InsomniaV5PathParameter,
+  InsomniaV5Body,
+  InsomniaV5Authentication,
+  EmptyBody
+} from './types/insomnia-v5.types';
 
 // Import existing constants and utilities
 export const CONTENT_TYPE_JSON = 'application/json';
@@ -33,6 +52,16 @@ export function forceBracketNotation(prefix: string, path: string): string {
 
 // Import existing converter but we'll override the script processing
 import { convert as postmanConvert } from './postman-converter';
+
+/**
+ * Variable type definition
+ */
+interface Variable {
+  name: string;
+  value: string | number | boolean;
+  enabled?: boolean;
+  description?: string;
+}
 
 // =============================================================================
 // ENHANCED CONVERSION OPTIONS
@@ -73,35 +102,72 @@ export interface ConversionResult {
  * @param parsed The parsed JSON data.
  * @returns True if the object is a Postman environment, false otherwise.
  */
-export function isPostmanEnvironment(parsed: any): boolean {
+export function isPostmanEnvironment(parsed: unknown): parsed is PostmanEnvironment {
   if (
     !parsed ||
     typeof parsed !== 'object' ||
-    typeof parsed.name !== 'string' ||
-    !Array.isArray(parsed.values) ||
-    (parsed.info && parsed.item) // Quick check: not a collection
+    Array.isArray(parsed)
   ) {
     return false;
   }
 
-  // If the values array is not empty, we can check if
-  // the first item has the structure of a variable (i.e., has key/value properties).
-  if (parsed.values.length > 0) {
-    const firstValue = parsed.values[0];
+  const env = parsed as Record<string, unknown>;
+
+  if (
+    typeof env.name !== 'string' ||
+    !Array.isArray(env.values) ||
+    (env.info && env.item) // Quick check: not a collection
+  ) {
+    return false;
+  }
+
+  if (env.values.length > 0) {
+    const firstValue = env.values[0] as Record<string, unknown>;
     return (
       typeof firstValue === 'object' &&
       firstValue !== null &&
-      'key' in firstValue &&
-      'value' in firstValue
+      typeof firstValue.key === 'string' &&
+      typeof firstValue.value === 'string'
     );
   }
 
-  // Environment with an empty 'values' array is still valid.
-  return true;
+  return true; // empty values is still valid
 }
 
-function isPostmanCollection(parsed: any): boolean {
-  return parsed.info && parsed.info.schema && Array.isArray(parsed.item);
+/**
+ * Checks if a parsed JSON object is a Postman collection.
+ *
+ * This verifies the presence of `info.schema` and `item[]`,
+ * which distinguishes it from environments and invalid objects.
+ *
+ * @param parsed The parsed JSON data.
+ * @returns True if the object is a Postman collection.
+ */
+function isPostmanCollection(parsed: unknown): parsed is PostmanCollectionV2 | PostmanCollectionV21 {
+  if (
+    !parsed ||
+    typeof parsed !== 'object' ||
+    Array.isArray(parsed)
+  ) {
+    return false;
+  }
+
+  const col = parsed as Record<string, unknown>;
+
+  if (
+    !col.info ||
+    typeof col.info !== 'object' ||
+    !Array.isArray(col.item)
+  ) {
+    return false;
+  }
+
+  const info = col.info as Record<string, unknown>;
+
+  return (
+    typeof info.schema === 'string' &&
+    info.schema.includes('postman.com/json/collection')
+  );
 }
 
 function generateSecureInsomniaUUID(prefix: string): string {
@@ -125,22 +191,19 @@ function generateSecureInsomniaUUID(prefix: string): string {
  * @param envData The Postman environment data.
  * @returns An array of Insomnia-compatible objects.
  */
-export function convertPostmanEnvironment(envData: any): any[] {
+export function convertPostmanEnvironment(envData: PostmanEnvironment): [InsomniaWorkspace, InsomniaEnvironment] {
 
   const workspaceId = generateSecureInsomniaUUID('wrk');
   const envId = generateSecureInsomniaUUID('env');
 
-  const data = envData.values.reduce((accumulator: any, { enabled, key, value }: any) => {
-    if (enabled === false) {
-      return accumulator;
-    }
-    return {
-      ...accumulator,
-      [key]: value,
-    };
-  }, {});
+  const data = envData.values.reduce<Record<string, string>>(
+    (accumulator, { enabled, key, value }) => {
+      if (enabled === false) return accumulator;
+      return { ...accumulator, [key]: value };
+    },
+    {}
+  );
 
-  // Default the scope to 'environment' if it's not present.
   const scope = envData._postman_variable_scope || 'environment';
 
   return [
@@ -165,7 +228,6 @@ export function convertPostmanEnvironment(envData: any): any[] {
     }
   ];
 }
-
 
 // =============================================================================
 // MAIN CONVERSION ORCHESTRATOR WITH TRANSFORMS
@@ -192,7 +254,7 @@ export async function convertPostmanToInsomnia(
     }
   }
 
-  const allCollections: any[] = [];
+  const allCollections: ImportRequest[] = [];
 
   for (const file of files) {
     try {
@@ -211,7 +273,7 @@ export async function convertPostmanToInsomnia(
       }
 
       const parsed = JSON.parse(rawData);
-      let converted: any[] | null = null;
+      let converted: ImportRequest[] | null = null;
 
       if (isPostmanEnvironment(parsed)) {
         if (options.verbose) {
@@ -248,7 +310,7 @@ export async function convertPostmanToInsomnia(
       if (options.merge) {
         allCollections.push(...converted);
       } else {
-        const insomniaData = convertToInsomniaV5Format(converted, path.basename(file, '.json'));
+        const insomniaData: InsomniaV5Export = convertToInsomniaV5Format(converted, path.basename(file, '.json'));
         const outputPath = await writeOutput(insomniaData, file, options);
         result.outputs.push(outputPath);
 
@@ -282,9 +344,9 @@ function convertPostmanCollectionWithTransforms(
   rawData: string,
   transformEngine?: TransformEngine,
   options?: ConversionOptions
-): any[] | null {
+): ImportRequest[] | null {
   try {
-    const collection = JSON.parse(rawData);
+    //const collection = JSON.parse(rawData);
     const result = postmanConvert(rawData, transformEngine, options?.useCollectionFolder);
 
     // The result from postmanConvert might be ConvertResult, but we need any[] | null
@@ -325,10 +387,13 @@ function convertPostmanCollectionWithTransforms(
 // =============================================================================
 // EXISTING INSOMNIA V5 FORMAT CONVERSION (UNCHANGED)
 // =============================================================================
+function convertToInsomniaV5Format(
+  resources: ImportRequest[],
+  collectionName: string
+): InsomniaV5Export {
 
-function convertToInsomniaV5Format(resources: any[], collectionName: string) {
+  // Check if this is an environment export
   const workspace = resources.find(r => r._type === 'workspace');
-
   if (workspace && workspace.scope === 'environment') {
     const environment = resources.find(r => r._type === 'environment');
 
@@ -336,7 +401,7 @@ function convertToInsomniaV5Format(resources: any[], collectionName: string) {
       type: 'environment.insomnia.rest/5.0' as const,
       name: workspace.name || collectionName,
       meta: {
-        id: workspace._id,
+        id: workspace._id || generateSecureInsomniaUUID('wrk'),
         created: Date.now(),
         modified: Date.now(),
         isPrivate: false,
@@ -350,14 +415,17 @@ function convertToInsomniaV5Format(resources: any[], collectionName: string) {
           modified: Date.now(),
           isPrivate: false
         },
-        data: environment?.data || {}
+        data: convertEnvironmentData(environment?.data)
       }
     };
   }
 
-  const collectionWorkspace = resources.find(r => r._type === 'request_group' && r.parentId === '__WORKSPACE_ID__');
+  // Handle collection export
+  const collectionWorkspace = resources.find(
+    r => r._type === 'request_group' && r.parentId === '__WORKSPACE_ID__'
+  );
 
-  const insomniaData = {
+  const insomniaData: InsomniaV5CollectionExport = {
     type: 'collection.insomnia.rest/5.0' as const,
     name: collectionWorkspace?.name || collectionName,
     meta: {
@@ -367,7 +435,10 @@ function convertToInsomniaV5Format(resources: any[], collectionName: string) {
       isPrivate: false,
       description: collectionWorkspace?.description || ''
     },
-    collection: convertResourcesToInsomniaV5Collection(resources, collectionWorkspace?._id || '__WORKSPACE_ID__'),
+    collection: convertResourcesToInsomniaV5Collection(
+      resources,
+      collectionWorkspace?._id || '__WORKSPACE_ID__'
+    ),
     environments: {
       name: 'Base Environment',
       meta: {
@@ -376,7 +447,7 @@ function convertToInsomniaV5Format(resources: any[], collectionName: string) {
         modified: Date.now(),
         isPrivate: false
       },
-      data: collectionWorkspace?.variable || {}
+      data: convertVariableToData(collectionWorkspace?.variable) || {}
     },
     cookieJar: {
       name: 'Cookie Jar',
@@ -393,41 +464,43 @@ function convertToInsomniaV5Format(resources: any[], collectionName: string) {
   return insomniaData;
 }
 
-function convertResourcesToInsomniaV5Collection(resources: any[], parentId: string): any[] {
-  const collection: any[] = [];
+/**
+ * Converts ImportRequest resources to Insomnia v5 collection format
+ *
+ * This function recursively processes the resource tree and converts each
+ * request and folder to the proper Insomnia v5 collection item format.
+ *
+ * @param resources Array of ImportRequest resources to convert
+ * @param parentId Parent ID to filter children for this level
+ * @returns Array of properly formatted Insomnia v5 collection items
+ */
+function convertResourcesToInsomniaV5Collection(
+  resources: ImportRequest[],
+  parentId: string
+): InsomniaV5CollectionItem[] {
+
+  const collection: InsomniaV5CollectionItem[] = [];
   const childResources = resources.filter(r => r.parentId === parentId);
   const now = Date.now();
   let sortKeyCounter = -now;
 
   for (const resource of childResources) {
     if (resource._type === 'request') {
-      collection.push({
+      // Create a properly typed request item
+      const requestItem: InsomniaV5Request = {
         name: resource.name || '',
+        description: resource.description || '',
         url: resource.url || '',
         method: resource.method || 'GET',
-        body: resource.body || { mimeType: null, text: '' },
-        headers: (resource.headers || []).map((h: any) => ({
-          name: h.name || '',
-          value: h.value || ''
-        })),
-        parameters: (resource.parameters || []).map((p: any) => ({
-          name: p.name || '',
-          value: p.value || '',
-          disabled: p.disabled || false
-        })),
-
-        pathParameters: (resource.pathParameters || []).map((p: any) => ({
-          name: p.name || '',
-          value: p.value || ''
-        })),
-
-        authentication: resource.authentication || {},
-
+        body: convertBody(resource.body),
+        headers: convertHeaders(resource.headers),
+        parameters: convertParameters(resource.parameters),
+        pathParameters: convertPathParameters(resource.parameters),
+        authentication: convertAuthentication(resource.authentication),
         scripts: {
           preRequest: resource.preRequestScript || '',
           afterResponse: resource.afterResponseScript || ''
         },
-
         settings: {
           renderRequestBody: true,
           encodeUrl: true,
@@ -438,85 +511,87 @@ function convertResourcesToInsomniaV5Collection(resources: any[], parentId: stri
             store: true
           }
         },
-
         meta: {
-          id: resource._id,
+          id: resource._id || 'unknown',
           created: Date.now(),
           modified: Date.now(),
           isPrivate: false,
           description: resource.description || '',
           sortKey: sortKeyCounter++
         },
-
         children: undefined
-      });
+      };
+
+      collection.push(requestItem);
 
     } else if (resource._type === 'request_group') {
-      collection.push({
+      // Create a properly typed request group item
+      const groupItem: InsomniaV5RequestGroup = {
         name: resource.name || '',
         description: resource.description || '',
-        environment: resource.environment || {},
-        environmentPropertyOrder: resource.environmentPropertyOrder || {},
-
+        environment: convertEnvironmentToObject(resource.environment),
+        environmentPropertyOrder: convertEnvironmentToObject(resource.environmentPropertyOrder),
         scripts: {
           preRequest: resource.preRequestScript || '',
           afterResponse: resource.afterResponseScript || ''
         },
-
-        authentication: resource.authentication || {},
-
-        headers: (resource.headers || []).map((h: any) => ({
-          name: h.name || '',
-          value: h.value || ''
-        })),
-
+        authentication: convertAuthentication(resource.authentication),
+        headers: convertHeaders(resource.headers),
         meta: {
-          id: resource._id,
+          id: resource._id || 'unknown',
           created: Date.now(),
           modified: Date.now(),
           isPrivate: false,
           description: resource.description || '',
           sortKey: sortKeyCounter++
         },
-
-        children: convertResourcesToInsomniaV5Collection(resources, resource._id),
-
+        // Recursively convert children
+        children: convertResourcesToInsomniaV5Collection(resources, resource._id || ''),
         method: undefined,
         url: undefined,
         parameters: undefined,
         pathParameters: undefined
-      });
+      };
+
+      collection.push(groupItem);
     }
   }
 
   return collection;
 }
 
+
+
 // =============================================================================
 // FILE OUTPUT FUNCTIONS (UNCHANGED)
 // =============================================================================
 
-async function writeOutput(data: any, inputFile: string, options: ConversionOptions): Promise<string> {
-  const baseName = path.basename(inputFile, '.json');
+//async function writeOutput(data: ImportRequest[], inputFile: string, options: ConversionOptions): Promise<string> {
+async function writeOutput(
+  insomniaData: InsomniaV5Export,
+  file: string,
+  options: ConversionOptions
+): Promise<string> {
+  const baseName = path.basename(file, '.json');
   const extension = options.format === 'yaml' ? 'yaml' : 'json';
   const outputFile = path.join(options.outputDir, `${baseName}.insomnia.${extension}`);
 
   let content: string;
   if (options.format === 'yaml') {
-    content = yaml.dump(data, {
+    content = yaml.dump(insomniaData, {
       indent: 2,
       lineWidth: -1,
       noRefs: true
     });
   } else {
-    content = JSON.stringify(data, null, 2);
+    content = JSON.stringify(insomniaData, null, 2);
   }
 
   fs.writeFileSync(outputFile, content, 'utf8');
   return outputFile;
 }
 
-async function writeMergedOutput(data: any, options: ConversionOptions): Promise<string> {
+async function writeMergedOutput(data: ImportRequest, options: ConversionOptions): Promise<string> {
   const extension = options.format === 'yaml' ? 'yaml' : 'json';
   const outputFile = path.join(options.outputDir, `merged-collection.insomnia.${extension}`);
 
@@ -533,4 +608,134 @@ async function writeMergedOutput(data: any, options: ConversionOptions): Promise
 
   fs.writeFileSync(outputFile, content, 'utf8');
   return outputFile;
+}
+
+/**
+ * Safely converts variable data to environment data format
+ */
+function convertVariableToData(
+  variable: Record<string, string | number | boolean> | Variable[] | undefined
+): Record<string, string | number | boolean> {
+  if (!variable) {
+    return {};
+  }
+
+  // If it's already a simple object, return it
+  if (!Array.isArray(variable)) {
+    return variable;
+  }
+
+  // If it's an array of variables, convert to object
+  const result: Record<string, string | number | boolean> = {};
+  for (const v of variable) {
+    if (typeof v === 'object' && v !== null && 'name' in v && 'value' in v) {
+      result[String(v.name)] = v.value;
+    }
+  }
+
+  return result;
+}
+
+function convertEnvironmentData(data: unknown): Record<string, string | number | boolean> {
+  if (!data || typeof data !== 'object') {
+    return {};
+  }
+
+  const result: Record<string, string | number | boolean> = {};
+  const objectData = data as Record<string, unknown>;
+
+  for (const [key, value] of Object.entries(objectData)) {
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      result[key] = value;
+    } else if (value !== null && value !== undefined) {
+      result[key] = String(value);
+    }
+  }
+
+  return result;
+}
+
+function convertHeaders(headers: unknown): InsomniaV5Header[] {
+  if (!Array.isArray(headers)) {
+    return [];
+  }
+
+  return headers.map((h: unknown): InsomniaV5Header => {
+    const header = h as Record<string, unknown>;
+    return {
+      name: String(header.name || ''),
+      value: String(header.value || '')
+    };
+  });
+}
+
+function convertParameters(parameters: unknown): InsomniaV5Parameter[] {
+  if (!Array.isArray(parameters)) {
+    return [];
+  }
+
+  return parameters.map((p: unknown): InsomniaV5Parameter => {
+    const param = p as Record<string, unknown>;
+    return {
+      name: String(param.name || ''),
+      value: String(param.value || ''),
+      disabled: Boolean(param.disabled)
+    };
+  });
+}
+
+function convertPathParameters(pathParameters: unknown): InsomniaV5PathParameter[] {
+  if (!Array.isArray(pathParameters)) {
+    return [];
+  }
+
+  return pathParameters.map((p: unknown): InsomniaV5PathParameter => {
+    const param = p as Record<string, unknown>;
+    return {
+      name: String(param.name || ''),
+      value: String(param.value || '')
+    };
+  });
+}
+
+function convertBody(body: unknown): InsomniaV5Body | EmptyBody {
+  // Return empty object for falsy values
+  if (!body) {
+    return {};
+  }
+
+  // Return empty object for empty objects
+  if (typeof body === 'object' && Object.keys(body).length === 0) {
+    return {};
+  }
+
+  // Process structured bodies
+  const bodyObj = body as Record<string, unknown>;
+
+  // Return empty object if no meaningful content
+  if (!bodyObj.mimeType && !bodyObj.text) {
+    return {};
+  }
+
+  // Return structured body only when there's actual content
+  return {
+    mimeType: bodyObj.mimeType ? String(bodyObj.mimeType) : null,
+    text: String(bodyObj.text || '')
+  };
+}
+
+function convertAuthentication(auth: unknown): InsomniaV5Authentication {
+  if (!auth || typeof auth !== 'object') {
+    return {};
+  }
+
+  return auth as InsomniaV5Authentication;
+}
+
+function convertEnvironmentToObject(env: unknown): Record<string, unknown> {
+  if (!env || typeof env !== 'object') {
+    return {};
+  }
+
+  return env as Record<string, unknown>;
 }

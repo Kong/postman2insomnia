@@ -3,6 +3,7 @@
 // =============================================================================
 import { convert } from '../../src/postman-converter';
 import type { ImportRequest } from '../../src/types/entities';
+import type { TransformEngine } from '../../src/transform-engine';
 
 describe('--use-collection-folder Feature', () => {
   // ==========================================================================
@@ -400,9 +401,19 @@ describe('--use-collection-folder Feature', () => {
     test('should work with transform engine when useCollectionFolder = true', () => {
       const collection = createTestCollection();
       const mockTransformEngine = {
-        preprocess: jest.fn((data) => data),
-        postprocess: jest.fn((data) => data)
-      };
+        config: {
+          preprocess: [],
+          postprocess: []
+        },
+        preprocess: jest.fn((data: string) => data),
+        postprocess: jest.fn((data: string) => data),
+        addPreprocessRule: jest.fn(),
+        addPostprocessRule: jest.fn(),
+        toggleRule: jest.fn(),
+        exportConfig: jest.fn(() => '{}'),
+        saveConfig: jest.fn()
+      } as unknown as TransformEngine;
+
 
       const result = convert(JSON.stringify(collection), mockTransformEngine, true) as ImportRequest[];
 
