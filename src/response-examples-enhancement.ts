@@ -103,41 +103,11 @@ function formatResponseExamples(responses: PostmanResponseExample[]): string {
   }
 
   const exampleBlocks = responses.map((response, index) => {
-    // Create the response example object with proper typing
-    const exampleData: FormattedResponseExample = {
-      name: response.name,
-      status: response.status,
-      code: response.code
-    };
+    let exampleBlock = '';
 
-    // Always include headers if present
-    if (response.header && response.header.length > 0) {
-      exampleData.headers = response.header.reduce((acc: Record<string, string>, header) => {
-        acc[header.key] = header.value;
-        return acc;
-      }, {});
-    }
-
-    // Add response body if present
-    if (response.body) {
-      try {
-        // Try to parse as JSON for better formatting
-        const parsedBody: unknown = JSON.parse(response.body);
-        exampleData.body = parsedBody;
-      } catch {
-        // If not JSON, include as string
-        exampleData.body = response.body;
-      }
-    }
-
-    // Add preview language if available
-    if (response._postman_previewlanguage) {
-      exampleData.contentType = response._postman_previewlanguage;
-    }
-
-    // Add original request if available
+    // First, add the request example if original request exists
     if (response.originalRequest) {
-      exampleData.originalRequest = {
+      const requestData = {
         method: response.originalRequest.method,
         url: extractUrlFromOriginalRequest(response.originalRequest.url),
         ...(response.originalRequest.header && response.originalRequest.header.length > 0 && {
@@ -147,11 +117,45 @@ function formatResponseExamples(responses: PostmanResponseExample[]): string {
           }, {})
         })
       };
-    }
-    // Always use pretty formatting
-    const jsonString = JSON.stringify(exampleData, null, 2);
 
-    return `### Response Example ${index + 1}: ${response.name}\n\n\`\`\`json\n${jsonString}\n\`\`\``;
+      const requestJsonString = JSON.stringify(requestData, null, 2);
+      exampleBlock += `### Request Example ${index + 1}: ${response.name}\n\n\`\`\`json\n${requestJsonString}\n\`\`\`\n\n`;
+    }
+
+    // Then add the response example
+    const responseData: FormattedResponseExample = {
+      name: response.name,
+      status: response.status,
+      code: response.code
+    };
+
+    // Add headers if present
+    if (response.header && response.header.length > 0) {
+      responseData.headers = response.header.reduce((acc: Record<string, string>, header) => {
+        acc[header.key] = header.value;
+        return acc;
+      }, {});
+    }
+
+    // Add response body if present
+    if (response.body) {
+      try {
+        const parsedBody: unknown = JSON.parse(response.body);
+        responseData.body = parsedBody;
+      } catch {
+        responseData.body = response.body;
+      }
+    }
+
+    // Add content type if available
+    if (response._postman_previewlanguage) {
+      responseData.contentType = response._postman_previewlanguage;
+    }
+
+    const responseJsonString = JSON.stringify(responseData, null, 2);
+    exampleBlock += `### Response Example ${index + 1}: ${response.name}\n\n\`\`\`json\n${responseJsonString}\n\`\`\``;
+
+    return exampleBlock;
   });
 
   return `\n\n## Response Examples\n\n${exampleBlocks.join('\n\n')}`;
