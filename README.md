@@ -520,6 +520,19 @@ This endpoint uploads documents for processing.
 
 ## Response Examples
 
+### Request Example 1: Successful Upload
+
+```json
+{
+  "method": "POST",
+  "url": "https://api.example.com/upload",
+  "headers": {
+    "Authorization": "Bearer {{token}}",
+    "Content-Type": "multipart/form-data"
+  }
+}
+```
+
 ### Response Example 1: Successful Upload
 
 ```json
@@ -533,6 +546,20 @@ This endpoint uploads documents for processing.
   "body": {
     "id": "doc123",
     "status": "uploaded"
+  },
+  "contentType": "json"
+}
+```
+
+### Request Example 2: Bad Request
+
+```json
+{
+  "method": "POST",
+  "url": "https://api.example.com/upload",
+  "headers": {
+    "Authorization": "Bearer {{token}}",
+    "Content-Type": "multipart/form-data"
   }
 }
 ```
@@ -544,9 +571,13 @@ This endpoint uploads documents for processing.
   "name": "Bad Request",
   "status": "Bad Request",
   "code": 400,
+  "headers": {
+    "Content-Type": "application/json"
+  },
   "body": {
     "error": "Invalid file format"
-  }
+  },
+  "contentType": "json"
 }
 ```
 ````
