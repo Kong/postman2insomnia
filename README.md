@@ -529,6 +529,22 @@ This endpoint uploads documents for processing.
   "headers": {
     "Authorization": "Bearer {{token}}",
     "Content-Type": "multipart/form-data"
+  },
+  "body": {
+    "mode": "formdata",
+    "formdata": [
+      {
+        "key": "file",
+        "value": "document.pdf",
+        "type": "file",
+        "description": "Document file to upload"
+      },
+      {
+        "key": "category",
+        "value": "financial",
+        "type": "text"
+      }
+    ]
   }
 }
 ```
@@ -545,7 +561,8 @@ This endpoint uploads documents for processing.
   },
   "body": {
     "id": "doc123",
-    "status": "uploaded"
+    "status": "uploaded",
+    "message": "Document processed successfully"
   },
   "contentType": "json"
 }
@@ -560,6 +577,17 @@ This endpoint uploads documents for processing.
   "headers": {
     "Authorization": "Bearer {{token}}",
     "Content-Type": "multipart/form-data"
+  },
+  "body": {
+    "mode": "formdata",
+    "formdata": [
+      {
+        "key": "file",
+        "value": "invalid-file.txt",
+        "type": "file",
+        "description": "Invalid file format"
+      }
+    ]
   }
 }
 ```
@@ -575,12 +603,13 @@ This endpoint uploads documents for processing.
     "Content-Type": "application/json"
   },
   "body": {
-    "error": "Invalid file format"
+    "error": "Invalid file format",
+    "code": "INVALID_FORMAT",
+    "message": "Only PDF and image files are supported"
   },
   "contentType": "json"
 }
 ```
-````
 
 ### Key Features
 
