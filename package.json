@@ -1,6 +1,6 @@
 {
   "name": "postman2insomnia",
-  "version": "1.7.2",
+  "version": "1.8.0",
   "description": "CLI tool to convert Postman collections to Insomnia v5 YAML format",
   "main": "dist/index.js",
   "bin": {

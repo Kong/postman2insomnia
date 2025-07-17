@@ -76,6 +76,9 @@ interface CliOptions {
 
   /** Flag to supress deprecation warnings */
   quiet?: boolean;
+
+  /** Flag to include responses in the request description */
+  includeResponseExamples?: boolean;
 }
 
 // =============================================================================
@@ -113,6 +116,12 @@ program
 
   // Handle deprecation warnings
   .option('--quiet', 'Suppress deprecation warning', false)
+
+  // Include responses in request description
+  .option(
+    '--include-response-examples',
+    'Include Postman response examples in request descriptions'
+  )
 
   // Main action handler - this is where the actual work happens
   .action(async (inputs: string[], options: CliOptions) => {
@@ -183,7 +192,8 @@ program
         postprocess: options.postprocess,
         configFile: options.configFile,
         useCollectionFolder: options.useCollectionFolder,
-        experimental: options.experimental
+        experimental: options.experimental,
+        includeResponseExamples: options.includeResponseExamples
       });
 
       // =======================================================================

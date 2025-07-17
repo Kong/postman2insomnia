@@ -15,6 +15,7 @@ A powerful command-line tool that converts Postman collections and environments 
 - **Maintains variables** and environment data
 - **Filters disabled variables** from environments
 - **Auto-detects file types** (collection vs environment)
+- **Captures Postman Responses** Stores Postman request responses as request description in `Markdown`
 
 ### Folder Structure Options
 - **Flexible folder organization** - Choose between two folder structures:
@@ -185,6 +186,9 @@ postman2insomnia enterprise/*.json --use-collection-folder --config-file ./enter
 
 # Use experimental rules
 postman2insomnia collection.json --preprocess --postprocess --experimental
+
+# Capture Postman response information as Insomnia request descriptions
+postman2insomnia collection.json --include-response-examples
 ```
 
 ### Transform Configuration Management
@@ -215,6 +219,7 @@ postman2insomnia collection.json --config-file ./transforms.json
 | `--help` | `-h` | Show help | |
 | `--version` | `-V` | Show version | |
 | `--quiet` | | Suppress deprecation warning | `false` |
+| `--include-response-examples` | | Captures Postman response examples into Insomnia request descriptions | `false` |
 
 *_**Note**: `--use-collection-folder` currently defaults to `false` for backward compatibility. In a future major version, this will become the default behavior to better match how Insomnia UI performs conversions._
 
@@ -480,6 +485,93 @@ Continue using string patterns for:
 - ✅ String patterns with flags continue to function identically
 - ✅ No modification required for existing workflows
 - ✅ RegExp object support is purely additive
+
+## Response Examples Enhancement
+
+### Overview
+
+Postman collections sometimes contain response examples that demonstrate expected API behaviour. By default, these examples are lost during conversion because Insomnia doesn't have an equivalent feature. The Response Examples Enhancement solves this by preserving these examples as structured markdown in request descriptions.
+
+### Quick Start
+
+Enable response examples preservation with a single flag:
+
+```bash
+# Basic usage
+postman2insomnia collection.json --include-response-examples
+
+# Combined with other options
+postman2insomnia collection.json \
+  --include-response-examples \
+  --output ./converted \
+  --verbose
+```
+
+### What You Get
+
+**Before** (Postman description):
+```
+This endpoint uploads documents for processing.
+```
+
+**After** (Enhanced Insomnia description):
+````markdown
+This endpoint uploads documents for processing.
+
+## Response Examples
+
+### Response Example 1: Successful Upload
+
+```json
+{
+  "name": "Successful Upload",
+  "status": "OK",
+  "code": 200,
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "id": "doc123",
+    "status": "uploaded"
+  }
+}
+```
+
+### Response Example 2: Bad Request
+
+```json
+{
+  "name": "Bad Request",
+  "status": "Bad Request",
+  "code": 400,
+  "body": {
+    "error": "Invalid file format"
+  }
+}
+```
+````
+
+### Key Features
+
+- ✅ **Preserves all response examples** from your Postman collections
+- ✅ **Appends to existing descriptions** without overwriting content
+- ✅ **Pretty-formatted JSON** with proper indentation for readability
+- ✅ **Complete response data** including status, headers, and body
+- ✅ **Works with both** Postman v2.0 and v2.1 collections
+- ✅ **Zero configuration** - consistent formatting out of the box
+
+### When to Use
+
+Perfect for teams that:
+- Rely on Postman response examples for API documentation
+- Want to preserve valuable response documentation during migration
+- Need reference examples for expected API responses during development
+- Share collections with team members who depend on response examples
+
+---
+
+📖 **For complete documentation, usage examples, and troubleshooting**: [Response Examples Documentation](docs/response-examples.md)
+
 
 ## Common Issues & Solutions
 

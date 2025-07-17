@@ -77,6 +77,7 @@ export interface ConversionOptions {
   transformEngine?: TransformEngine;
   useCollectionFolder?: boolean;
   experimental?: boolean;
+  includeResponseExamples?: boolean;
 }
 
 export interface ConversionResult {
@@ -336,7 +337,12 @@ function convertPostmanCollectionWithTransforms(
 ): ImportRequest[] | null {
   try {
     //const collection = JSON.parse(rawData);
-    const result = postmanConvert(rawData, transformEngine, options?.useCollectionFolder);
+    const result = postmanConvert(
+      rawData,
+      transformEngine,
+      options?.useCollectionFolder,
+      options?.includeResponseExamples
+    );
 
     // The result from postmanConvert might be ConvertResult, but we need any[] | null
     // So we need to check if it's an array and handle other cases
@@ -374,7 +380,7 @@ function convertPostmanCollectionWithTransforms(
 }
 
 // =============================================================================
-// EXISTING INSOMNIA V5 FORMAT CONVERSION (UNCHANGED)
+// EXISTING INSOMNIA V5 FORMAT CONVERSION
 // =============================================================================
 function convertToInsomniaV5Format(
   resources: ImportRequest[],
@@ -552,7 +558,7 @@ function convertResourcesToInsomniaV5Collection(
 
 
 // =============================================================================
-// FILE OUTPUT FUNCTIONS (UNCHANGED)
+// FILE OUTPUT FUNCTIONS
 // =============================================================================
 
 //async function writeOutput(data: ImportRequest[], inputFile: string, options: ConversionOptions): Promise<string> {

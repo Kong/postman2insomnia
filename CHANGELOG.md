@@ -5,6 +5,28 @@ All notable changes to the Postman to Insomnia CLI converter will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2025-01-17
+
+### Added
+- **Response Examples Enhancement** - New `--include-response-examples` flag preserves Postman response examples during conversion
+  - Appends response examples to request descriptions as structured markdown with JSON code blocks
+  - Includes complete response data: status, headers, body, and content type
+  - Works with both Postman v2.0 and v2.1 collections
+  - Zero configuration with consistent pretty-formatted JSON output
+  - Gracefully handles malformed JSON and missing response data
+
+### Enhanced
+- **CLI Interface** - Added `--include-response-examples` option to command-line interface
+- **Conversion Pipeline** - Extended postman-converter to support response example processing
+- **Type Safety** - Added comprehensive TypeScript interfaces for response example handling
+- **Documentation** - Added dedicated response examples documentation in `docs/response-examples.md`
+
+### Technical Details
+- **Generic Type Support** - Created version-agnostic interfaces to handle both Postman v2.0 and v2.1 response structures
+- **Description Preservation** - Enhanced descriptions are appended to existing content without overwriting
+- **Error Resilience** - Validates response examples and filters out incomplete data automatically
+- **Test Coverage** - Added comprehensive unit test suite covering edge cases and real-world scenarios
+
 ## [1.7.2] - 2025-01-16
 
 ### Added
