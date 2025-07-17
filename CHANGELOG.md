@@ -5,6 +5,17 @@ All notable changes to the Postman to Insomnia CLI converter will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1] - 2025-01-17
+
+### Enhanced
+- **Response Examples Enhancement** - Added original request information to response examples
+  - Now includes the HTTP method, URL, and headers from the original request that generated each response
+  - Provides complete request/response context for better API documentation
+  - Maintains backward compatibility with existing response example format
+
+### Fixed
+- **Documentation** - Updated examples in the documentation to reflect new originalRequest field inclusion
+
 ## [1.8.0] - 2025-01-17
 
 ### Added

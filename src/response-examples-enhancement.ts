@@ -72,6 +72,11 @@ interface FormattedResponseExample {
   headers?: Record<string, string>;
   body?: unknown;
   contentType?: string;
+  originalRequest?: {
+    method: string;
+    url: string;
+    headers?: Record<string, string>;
+  };
 }
 
 /**
@@ -130,6 +135,19 @@ function formatResponseExamples(responses: PostmanResponseExample[]): string {
       exampleData.contentType = response._postman_previewlanguage;
     }
 
+    // Add original request if available
+    if (response.originalRequest) {
+      exampleData.originalRequest = {
+        method: response.originalRequest.method,
+        url: extractUrlFromOriginalRequest(response.originalRequest.url),
+        ...(response.originalRequest.header && response.originalRequest.header.length > 0 && {
+          headers: response.originalRequest.header.reduce((acc: Record<string, string>, header) => {
+            acc[header.key] = header.value;
+            return acc;
+          }, {})
+        })
+      };
+    }
     // Always use pretty formatting
     const jsonString = JSON.stringify(exampleData, null, 2);
 
@@ -223,6 +241,19 @@ function isValidPostmanResponseExample(response: unknown): response is PostmanRe
  */
 function validateResponseExamples(responses: unknown[]): PostmanResponseExample[] {
   return responses.filter(isValidPostmanResponseExample);
+}
+
+function extractUrlFromOriginalRequest(url: unknown): string {
+  if (typeof url === 'string') {
+    return url;
+  }
+
+  if (url && typeof url === 'object') {
+    const urlObj = url as { raw?: string };
+    return urlObj.raw || '';
+  }
+
+  return '';
 }
 
 export {

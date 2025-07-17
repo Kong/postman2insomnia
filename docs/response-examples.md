@@ -73,6 +73,15 @@ This endpoint uploads and processes supporting documents with OCR capability.
       "globalResult": "NONE"
     }
   },
+  "originalRequest": {
+    "method": "POST",
+    "url": "https://kong-gateway.com/supportingDocuments/v1/contracts/:id/supportingDocuments/:documentId/upload",
+    "headers": {
+      "Authorization": "Bearer {{POD-UAT}}",
+      "context-partnerid": "web_sofinco",
+      "context-applicationid": "upload-se"
+    }
+  },
   "contentType": "json"
 }
 ```
@@ -92,10 +101,17 @@ This endpoint uploads and processes supporting documents with OCR capability.
     "shortlib": "eiusmod exercitation Lorem qui",
     "longlib": "nostrud et officia"
   },
+  "originalRequest": {
+    "method": "POST",
+    "url": "https://kong-gateway.com/supportingDocuments/v1/contracts/:id/supportingDocuments/:documentId/upload",
+    "headers": {
+      "Authorization": "Bearer {{POD-UAT}}",
+      "context-partnerid": "web_sofinco"
+    }
+  },
   "contentType": "json"
 }
 ```
-````
 
 ## How It Works
 
