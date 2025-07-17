@@ -325,7 +325,8 @@ type ConvertResult = ImportRequest[] | ConvertErrorResult | null;
 export type Converter = (
   rawData: string,
   transformEngine?: TransformEngine,
-  useCollectionFolder?: boolean
+  useCollectionFolder?: boolean,
+  includeResponseExamples?: boolean
 ) => ConvertResult | Promise<ConvertResult>;
 
 /**

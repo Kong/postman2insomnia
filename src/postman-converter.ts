@@ -5,7 +5,6 @@
 import { CONTENT_TYPE_JSON, CONTENT_TYPE_PLAINTEXT, CONTENT_TYPE_XML, fakerFunctions, forceBracketNotation } from './converter';
 import { TransformEngine } from './transform-engine';
 
-// Import all existing types (unchanged)
 import type {
   Converter as EntityConverter,
   ImportRequest as EntityImportRequest,
@@ -39,6 +38,12 @@ import type {
   Request1 as V210Request1,
   UrlEncodedParameter as V210UrlEncodedParameter,
 } from './types/postman-2.1.types';
+
+import {
+  integrateResponseExamples,
+  GenericPostmanItem,
+  GenericInsomniaRequest
+} from './response-examples-enhancement';
 
 // =============================================================================
 // TYPE DEFINITIONS FOR PROPER TYPING
@@ -230,17 +235,20 @@ export class ImportPostman {
   uuidGenerator: UUIDGenerator;
   transformEngine?: TransformEngine;
   addCollectionFolder: boolean;
+  includeResponseExamples: boolean;
 
   constructor(
     collection: PostmanCollection,
     rawData: string,
     transformEngine?: TransformEngine,
-    addCollectionFolder: boolean = false
+    addCollectionFolder: boolean = false,
+    includeResponseExamples: boolean = false
   ) {
     this.collection = collection;
     this.uuidGenerator = new UUIDGenerator(rawData);
     this.transformEngine = transformEngine;
     this.addCollectionFolder = addCollectionFolder;
+    this.includeResponseExamples = includeResponseExamples;
   }
 
   importVariable = (variables: Record<string, string>[]): Record<string, string> | null => {
@@ -318,7 +326,7 @@ export class ImportPostman {
     return translateHandlersInScript(scriptContent, this.transformEngine);
   };
 
-  importRequestItem = ({ request, name = '', event }: Item, parentId: string): ImportRequest => {
+  importRequestItem = ({ request, name = '', event, response }: Item, parentId: string): ImportRequest => {
     if (typeof request === 'string') {
       return {
         _id: this.uuidGenerator.generateRequestId(),
@@ -353,12 +361,44 @@ export class ImportPostman {
       } as V200Header);
     }
 
+    // Get the base description and handle both string and Description object
+    let description = '';
+    if (request.description) {
+      if (typeof request.description === 'string') {
+        description = request.description;
+      } else if (typeof request.description === 'object' && request.description !== null) {
+        // Handle Description object with content property
+        const descObj = request.description as { content?: string };
+        description = descObj.content || '';
+      }
+    }
+
+    // Response examples integration
+    if (this.includeResponseExamples && response && response.length > 0) {
+      // Create generic item and request objects
+      const genericItem: GenericPostmanItem = {
+        request,
+        name,
+        event,
+        response,
+        description: description
+      };
+
+      const mockInsomniaRequest: GenericInsomniaRequest = { description };
+
+      // Enhance the description with response examples
+      integrateResponseExamples(genericItem, mockInsomniaRequest);
+
+      // Update the description
+      description = mockInsomniaRequest.description;
+    }
+
     return {
       parentId,
       _id: this.uuidGenerator.generateRequestId(),
       _type: 'request',
       name,
-      description: (request.description as string) || '',
+      description,
       url: transformPostmanToNunjucksString(this.importUrl(request.url)),
       parameters: parameters,
       method: request.method || 'GET',
@@ -747,7 +787,12 @@ export class ImportPostman {
 // ENHANCED MAIN CONVERTER EXPORT FUNCTION
 // =============================================================================
 
-export const convert: EntityConverter = (rawData: string, transformEngine?: TransformEngine, addCollectionFolder?: boolean) => {
+export const convert: EntityConverter = (
+  rawData: string,
+  transformEngine?: TransformEngine,
+  addCollectionFolder?: boolean,
+  includeResponseExamples?: boolean
+) => {
   try {
     const collection = JSON.parse(rawData) as PostmanCollection;
 
@@ -755,12 +800,12 @@ export const convert: EntityConverter = (rawData: string, transformEngine?: Tran
       POSTMAN_SCHEMA_URLS_V2_0.includes(collection.info.schema) ||
       POSTMAN_SCHEMA_URLS_V2_1.includes(collection.info.schema)
     ) {
-      // Pass the addCollectionFolder option to ImportPostman
       const list = new ImportPostman(
         collection,
         rawData,
         transformEngine,
-        addCollectionFolder || false
+        addCollectionFolder || false,
+        includeResponseExamples || false
       ).importCollection();
 
       const now = Date.now();
