@@ -520,6 +520,35 @@ This endpoint uploads documents for processing.
 
 ## Response Examples
 
+### Request Example 1: Successful Upload
+
+```json
+{
+  "method": "POST",
+  "url": "https://api.example.com/upload",
+  "headers": {
+    "Authorization": "Bearer {{token}}",
+    "Content-Type": "multipart/form-data"
+  },
+  "body": {
+    "mode": "formdata",
+    "formdata": [
+      {
+        "key": "file",
+        "value": "document.pdf",
+        "type": "file",
+        "description": "Document file to upload"
+      },
+      {
+        "key": "category",
+        "value": "financial",
+        "type": "text"
+      }
+    ]
+  }
+}
+```
+
 ### Response Example 1: Successful Upload
 
 ```json
@@ -532,7 +561,33 @@ This endpoint uploads documents for processing.
   },
   "body": {
     "id": "doc123",
-    "status": "uploaded"
+    "status": "uploaded",
+    "message": "Document processed successfully"
+  },
+  "contentType": "json"
+}
+```
+
+### Request Example 2: Bad Request
+
+```json
+{
+  "method": "POST",
+  "url": "https://api.example.com/upload",
+  "headers": {
+    "Authorization": "Bearer {{token}}",
+    "Content-Type": "multipart/form-data"
+  },
+  "body": {
+    "mode": "formdata",
+    "formdata": [
+      {
+        "key": "file",
+        "value": "invalid-file.txt",
+        "type": "file",
+        "description": "Invalid file format"
+      }
+    ]
   }
 }
 ```
@@ -544,12 +599,17 @@ This endpoint uploads documents for processing.
   "name": "Bad Request",
   "status": "Bad Request",
   "code": 400,
+  "headers": {
+    "Content-Type": "application/json"
+  },
   "body": {
-    "error": "Invalid file format"
-  }
+    "error": "Invalid file format",
+    "code": "INVALID_FORMAT",
+    "message": "Only PDF and image files are supported"
+  },
+  "contentType": "json"
 }
 ```
-````
 
 ### Key Features
 

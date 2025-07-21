@@ -602,4 +602,209 @@ describe('Response Examples Enhancement', () => {
       expect(result).toContain('### Response Example 2:');
     });
   });
+  describe('Original Request Handling', () => {
+    const mockResponseWithOriginalRequest: PostmanResponseExample = {
+      name: "No Content",
+      status: "No Content",
+      code: 204,
+      header: [
+        { key: "Content-Type", value: "text/plain" }
+      ],
+      body: "",
+      _postman_previewlanguage: "text",
+      originalRequest: {
+        method: "DELETE",
+        header: [
+          {
+            key: "Authorization",
+            value: "reprehenderit aliqu"
+          },
+          {
+            key: "context-partnerid",
+            value: "reprehenderit aliqu"
+          },
+          {
+            key: "context-applicationid",
+            value: "reprehenderit aliqu"
+          }
+        ],
+        url: {
+          raw: "{{baseUrl}}/contracts/:id/supportingDocuments/:documentId/pages",
+          host: ["{{baseUrl}}"],
+          path: ["contracts", ":id", "supportingDocuments", ":documentId", "pages"],
+          variable: [
+            { key: "id" },
+            { key: "documentId" }
+          ]
+        },
+        body: undefined
+      }
+    };
+
+    test('should include original request information when available', () => {
+      const result = formatResponseExamples([mockResponseWithOriginalRequest]);
+
+      expect(result).toContain('## Response Examples');
+      expect(result).toContain('### Request Example 1: No Content');
+      expect(result).toContain('### Response Example 1: No Content');
+      expect(result).toContain('"method": "DELETE"');
+      expect(result).toContain('"url": "{{baseUrl}}/contracts/:id/supportingDocuments/:documentId/pages"');
+      expect(result).toContain('"Authorization": "reprehenderit aliqu"');
+      expect(result).toContain('"context-partnerid": "reprehenderit aliqu"');
+      expect(result).toContain('"context-applicationid": "reprehenderit aliqu"');
+    });
+
+    test('should handle original request with string URL', () => {
+      const responseWithStringUrl: PostmanResponseExample = {
+        name: "String URL Response",
+        status: "OK",
+        code: 200,
+        header: [],
+        originalRequest: {
+          method: "GET",
+          header: [],
+          url: "https://api.example.com/users"
+        }
+      };
+
+      const result = formatResponseExamples([responseWithStringUrl]);
+
+      expect(result).toContain('### Request Example 1: String URL Response');
+      expect(result).toContain('### Response Example 1: String URL Response');
+      expect(result).toContain('"method": "GET"');
+      expect(result).toContain('"url": "https://api.example.com/users"');
+    });
+
+    test('should handle original request without headers', () => {
+      const responseWithoutHeaders: PostmanResponseExample = {
+        name: "No Headers Request",
+        status: "OK",
+        code: 200,
+        header: [],
+        originalRequest: {
+          method: "GET",
+          header: [],
+          url: "https://api.example.com/simple"
+        }
+      };
+
+      const result = formatResponseExamples([responseWithoutHeaders]);
+
+      expect(result).toContain('### Request Example 1: No Headers Request');
+      expect(result).toContain('### Response Example 1: No Headers Request');
+      expect(result).toContain('"method": "GET"');
+      expect(result).toContain('"url": "https://api.example.com/simple"');
+      expect(result).not.toContain('"headers"');
+    });
+
+    test('should handle response without original request', () => {
+      const responseWithoutOriginalRequest: PostmanResponseExample = {
+        name: "No Original Request",
+        status: "OK",
+        code: 200,
+        header: []
+      };
+
+      const result = formatResponseExamples([responseWithoutOriginalRequest]);
+
+      expect(result).toContain('### Response Example 1: No Original Request');
+      expect(result).toContain('"name": "No Original Request"');
+      expect(result).not.toContain('### Request Example 1: No Original Request');
+    });
+
+    test('should handle malformed original request URL', () => {
+      const responseWithMalformedUrl: PostmanResponseExample = {
+        name: "Malformed URL",
+        status: "OK",
+        code: 200,
+        header: [],
+        originalRequest: {
+          method: "POST",
+          header: [],
+          url: null // Malformed URL
+        }
+      };
+
+      const result = formatResponseExamples([responseWithMalformedUrl]);
+
+      expect(result).toContain('### Request Example 1: Malformed URL');
+      expect(result).toContain('### Response Example 1: Malformed URL');
+      expect(result).toContain('"method": "POST"');
+      expect(result).toContain('"url": ""'); // Should fallback to empty string
+    });
+
+    test('should handle complex URL object structure', () => {
+      const responseWithComplexUrl: PostmanResponseExample = {
+        name: "Complex URL",
+        status: "OK",
+        code: 200,
+        header: [],
+        originalRequest: {
+          method: "PUT",
+          header: [],
+          url: {
+            raw: "https://api.example.com/users/:id?active=true",
+            protocol: "https",
+            host: ["api", "example", "com"],
+            path: ["users", ":id"],
+            query: [{ key: "active", value: "true" }],
+            variable: [{ key: "id", value: "123" }]
+          }
+        }
+      };
+
+      const result = formatResponseExamples([responseWithComplexUrl]);
+
+      expect(result).toContain('### Request Example 1: Complex URL');
+      expect(result).toContain('### Response Example 1: Complex URL');
+      expect(result).toContain('"method": "PUT"');
+      expect(result).toContain('"url": "https://api.example.com/users/:id?active=true"');
+    });
+
+    test('should show request and response examples in correct order', () => {
+      const result = formatResponseExamples([mockResponseWithOriginalRequest]);
+
+      const requestIndex = result.indexOf('### Request Example 1: No Content');
+      const responseIndex = result.indexOf('### Response Example 1: No Content');
+
+      expect(requestIndex).toBeLessThan(responseIndex);
+      expect(requestIndex).toBeGreaterThan(-1);
+      expect(responseIndex).toBeGreaterThan(-1);
+    });
+
+    test('should handle multiple responses with original requests', () => {
+      const response1: PostmanResponseExample = {
+        name: "Success",
+        status: "OK",
+        code: 200,
+        header: [],
+        originalRequest: {
+          method: "GET",
+          header: [],
+          url: "https://api.example.com/success"
+        }
+      };
+
+      const response2: PostmanResponseExample = {
+        name: "Error",
+        status: "Bad Request",
+        code: 400,
+        header: [],
+        originalRequest: {
+          method: "POST",
+          header: [],
+          url: "https://api.example.com/error"
+        }
+      };
+
+      const result = formatResponseExamples([response1, response2]);
+
+      expect(result).toContain('### Request Example 1: Success');
+      expect(result).toContain('### Response Example 1: Success');
+      expect(result).toContain('### Request Example 2: Error');
+      expect(result).toContain('### Response Example 2: Error');
+      expect(result).toContain('"method": "GET"');
+      expect(result).toContain('"method": "POST"');
+    });
+  });
 });

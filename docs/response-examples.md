@@ -53,6 +53,31 @@ This endpoint uploads and processes supporting documents with OCR capability.
 
 ## Response Examples
 
+### Request Example 1: upload and OCR result
+
+```json
+{
+  "method": "POST",
+  "url": "https://kong-gateway.com/supportingDocuments/v1/contracts/:id/supportingDocuments/:documentId/upload?withOcr=true&isValidated=true",
+  "headers": {
+    "Authorization": "Bearer {{POD-UAT}}",
+    "context-partnerid": "web_sofinco",
+    "context-applicationid": "upload-se"
+  },
+  "body": {
+    "mode": "formdata",
+    "formdata": [
+      {
+        "key": "file",
+        "value": "document.pdf",
+        "type": "file",
+        "description": "Supporting document file"
+      }
+    ]
+  }
+}
+```
+
 ### Response Example 1: upload and OCR result
 
 ```json
@@ -70,10 +95,36 @@ This endpoint uploads and processes supporting documents with OCR capability.
     "status": "toBeValidated",
     "ocrResult": {
       "status": "AUTH_ERROR",
-      "globalResult": "NONE"
+      "globalResult": "NONE",
+      "imageQualityResult": "ERROR"
     }
   },
   "contentType": "json"
+}
+```
+
+### Request Example 2: Bad request
+
+```json
+{
+  "method": "POST",
+  "url": "https://kong-gateway.com/supportingDocuments/v1/contracts/:id/supportingDocuments/:documentId/upload?withOcr=true&isValidated=true",
+  "headers": {
+    "Authorization": "Bearer {{POD-UAT}}",
+    "context-partnerid": "web_sofinco",
+    "context-applicationid": "upload-se"
+  },
+  "body": {
+    "mode": "formdata",
+    "formdata": [
+      {
+        "key": "file",
+        "value": "invalid-file.txt",
+        "type": "file",
+        "description": "Invalid file format"
+      }
+    ]
+  }
 }
 ```
 

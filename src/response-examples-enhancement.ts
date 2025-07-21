@@ -72,6 +72,11 @@ interface FormattedResponseExample {
   headers?: Record<string, string>;
   body?: unknown;
   contentType?: string;
+  originalRequest?: {
+    method: string;
+    url: string;
+    headers?: Record<string, string>;
+  };
 }
 
 /**
@@ -82,15 +87,139 @@ interface GenericInsomniaRequest {
 }
 
 /**
- * Processes Postman response examples and formats them as markdown
+ * Interface representing form data item in request body
+ */
+interface FormDataItem {
+  key: string;
+  value: string;
+  type?: string;
+  description?: string;
+}
+
+/**
+ * Interface representing URL encoded item in request body
+ */
+interface UrlEncodedItem {
+  key: string;
+  value: string;
+}
+
+/**
+ * Interface representing a formatted request body
+ */
+interface FormattedRequestBody {
+  mode: string;
+  formdata?: FormDataItem[];
+  raw?: string;
+  urlencoded?: UrlEncodedItem[];
+}
+
+/**
+ * Interface representing the formatted request data structure
+ */
+interface FormattedRequestExample {
+  method: string;
+  url: string;
+  headers?: Record<string, string>;
+  body?: FormattedRequestBody | unknown;
+}
+
+/**
+ * Helper function to format request body with proper typing
  *
- * Always includes:
- * - All available response examples
- * - Pretty formatted JSON
- * - Response headers
+ * @param body - Raw request body from Postman
+ * @returns Formatted request body structure
+ */
+function formatRequestBody(body: unknown): FormattedRequestBody | unknown {
+  if (!body || typeof body !== 'object') {
+    return body;
+  }
+
+  const bodyObj = body as Record<string, unknown>;
+
+  // Handle formdata body mode
+  if (bodyObj.mode === 'formdata' && Array.isArray(bodyObj.formdata)) {
+    const formdata: FormDataItem[] = bodyObj.formdata.map((item: unknown) => {
+      const formItem = item as Record<string, unknown>;
+      const result: FormDataItem = {
+        key: String(formItem.key || ''),
+        value: String(formItem.value || '')
+      };
+
+      if (formItem.type && typeof formItem.type === 'string') {
+        result.type = formItem.type;
+      }
+
+      if (formItem.description && typeof formItem.description === 'string') {
+        result.description = formItem.description;
+      }
+
+      return result;
+    });
+
+    return {
+      mode: 'formdata',
+      formdata
+    };
+  }
+
+  // Handle raw body mode
+  if (bodyObj.mode === 'raw' && typeof bodyObj.raw === 'string') {
+    return {
+      mode: 'raw',
+      raw: bodyObj.raw
+    };
+  }
+
+  // Handle urlencoded body mode
+  if (bodyObj.mode === 'urlencoded' && Array.isArray(bodyObj.urlencoded)) {
+    const urlencoded: UrlEncodedItem[] = bodyObj.urlencoded.map((item: unknown) => {
+      const urlItem = item as Record<string, unknown>;
+      return {
+        key: String(urlItem.key || ''),
+        value: String(urlItem.value || '')
+      };
+    });
+
+    return {
+      mode: 'urlencoded',
+      urlencoded
+    };
+  }
+
+  // Return the body as-is for other modes or unknown structures
+  return bodyObj;
+}
+
+/**
+ * Helper function to extract URL from original request URL object
+ *
+ * @param url - URL from original request (can be string or object)
+ * @returns Formatted URL string
+ */
+function extractUrlFromOriginalRequest(url: unknown): string {
+  if (typeof url === 'string') {
+    return url;
+  }
+
+  if (url && typeof url === 'object') {
+    const urlObj = url as Record<string, unknown>;
+    if (typeof urlObj.raw === 'string') {
+      return urlObj.raw;
+    }
+  }
+
+  return '';
+}
+
+/**
+ * Complete formatResponseExamples function with request body support
+ *
+ * Processes Postman response examples and formats them as markdown with
+ * complete request context (including body) followed by response details.
  *
  * @param responses - Array of Postman response examples
- * @returns Formatted markdown string containing response examples
+ * @returns Formatted markdown string containing request and response examples
  */
 function formatResponseExamples(responses: PostmanResponseExample[]): string {
   if (!responses || responses.length === 0) {
@@ -98,16 +227,42 @@ function formatResponseExamples(responses: PostmanResponseExample[]): string {
   }
 
   const exampleBlocks = responses.map((response, index) => {
-    // Create the response example object with proper typing
-    const exampleData: FormattedResponseExample = {
+    let exampleBlock = '';
+
+    // First, add the request example if original request exists
+    if (response.originalRequest) {
+      const requestData: FormattedRequestExample = {
+        method: response.originalRequest.method,
+        url: extractUrlFromOriginalRequest(response.originalRequest.url)
+      };
+
+      // Add headers if present
+      if (response.originalRequest.header && response.originalRequest.header.length > 0) {
+        requestData.headers = response.originalRequest.header.reduce((acc: Record<string, string>, header) => {
+          acc[header.key] = header.value;
+          return acc;
+        }, {});
+      }
+
+      // Add body if present
+      if (response.originalRequest.body) {
+        requestData.body = formatRequestBody(response.originalRequest.body);
+      }
+
+      const requestJsonString = JSON.stringify(requestData, null, 2);
+      exampleBlock += `### Request Example ${index + 1}: ${response.name}\n\n\`\`\`json\n${requestJsonString}\n\`\`\`\n\n`;
+    }
+
+    // Then add the response example
+    const responseData: FormattedResponseExample = {
       name: response.name,
       status: response.status,
       code: response.code
     };
 
-    // Always include headers if present
+    // Add headers if present
     if (response.header && response.header.length > 0) {
-      exampleData.headers = response.header.reduce((acc: Record<string, string>, header) => {
+      responseData.headers = response.header.reduce((acc: Record<string, string>, header) => {
         acc[header.key] = header.value;
         return acc;
       }, {});
@@ -118,22 +273,22 @@ function formatResponseExamples(responses: PostmanResponseExample[]): string {
       try {
         // Try to parse as JSON for better formatting
         const parsedBody: unknown = JSON.parse(response.body);
-        exampleData.body = parsedBody;
+        responseData.body = parsedBody;
       } catch {
         // If not JSON, include as string
-        exampleData.body = response.body;
+        responseData.body = response.body;
       }
     }
 
-    // Add preview language if available
+    // Add content type if available
     if (response._postman_previewlanguage) {
-      exampleData.contentType = response._postman_previewlanguage;
+      responseData.contentType = response._postman_previewlanguage;
     }
 
-    // Always use pretty formatting
-    const jsonString = JSON.stringify(exampleData, null, 2);
+    const responseJsonString = JSON.stringify(responseData, null, 2);
+    exampleBlock += `### Response Example ${index + 1}: ${response.name}\n\n\`\`\`json\n${responseJsonString}\n\`\`\``;
 
-    return `### Response Example ${index + 1}: ${response.name}\n\n\`\`\`json\n${jsonString}\n\`\`\``;
+    return exampleBlock;
   });
 
   return `\n\n## Response Examples\n\n${exampleBlocks.join('\n\n')}`;
@@ -194,6 +349,7 @@ function integrateResponseExamples(
     insomniaRequest.description = enhancedDescription;
   }
 }
+
 
 /**
  * Type guard to check if an object is a valid PostmanResponseExample
