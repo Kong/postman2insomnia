@@ -55,8 +55,10 @@ The tool now includes enhanced built-in rules:
 - `fix-header-value-access` - Fix header value access patterns
 - `fix-request-headers-add` - Convert header addition methods
 - `fix-request-url-assignment` - Convert URL assignment syntax
+- **NEW (v1.9.0)**: `collection-variables-set-to-folder-environment` - Convert `pm.collectionVariables.set()` to folder-scoped environment variables
+- **NEW (v1.9.0)**: `collection-variables-get-to-folder-environment` - Convert `pm.collectionVariables.get()` to folder-scoped environment variables
 
-### 🛠️ Script Processing
+### Script Processing
 - **Pre-request and post-response scripts** conversion from `pm.*` to `insomnia.*` syntax
 - **Automatic header access fixes** - Resolves `headers.get(...).includes is not a function` errors
 - **Legacy syntax updates** - Converts old `postman.*` and `tests[]` syntax to modern equivalents

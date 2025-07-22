@@ -5,6 +5,44 @@ All notable changes to the Postman to Insomnia CLI converter will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# Changelog Entry
+
+## [1.9.0] - 2025-01-22
+
+### Added
+- **Collection Variable Transformation** - Automatic conversion of Postman collection variables to Insomnia folder-scoped environment variables
+  - Transforms `pm.collectionVariables.set()` and `pm.collectionVariables.get()` calls to folder environment syntax
+  - Maintains proper folder context to scope variables to the correct folder in nested structures
+  - Uses rule-based transformation system allowing user customization through generated config files
+  - Falls back to collection name when scripts are at collection root level
+
+### Enhanced
+- **Transform System** - Added collection variable rules to default postprocessing pipeline
+- **Folder Context Tracking** - Enhanced collection processing to maintain folder hierarchy during conversion
+
+### Technical Details
+- **Rule Implementation** - Added `collection-variables-set-to-folder-environment` and `collection-variables-get-to-folder-environment` postprocessing rules
+- **Context Management** - Modified `ImportPostman` class with folder context tracking and placeholder resolution
+- **Type Safety** - Added `CollectionItem` union type and `isItemGroup` type guard for improved folder detection
+
+### Examples
+
+**Before (Postman):**
+```javascript
+pm.collectionVariables.set("my-token", "abc123");
+```
+
+**After (Insomnia):**
+```javascript
+const thisFolder = insomnia.parentFolders.get('Authentication');
+thisFolder.environment.set("my-token", "abc123");
+```
+
+### Migration Notes
+- **No Breaking Changes** - All existing functionality preserved
+- **User Configurable** - Rules can be customized or disabled through config files
+- **Automatic Application** - Feature works automatically with existing collections
+
 ## [1.8.1] - 2025-01-21
 
 ### Enhanced

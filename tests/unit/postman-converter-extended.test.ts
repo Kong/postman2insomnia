@@ -8,12 +8,8 @@
 import {
   convert,
   transformPostmanToNunjucksString,
-  translateHandlersInScript,
-  normaliseJsonPath,
-  ImportPostman
 } from '../../src/postman-converter';
 import type { ImportRequest } from '../../src/types/entities';
-import { TransformEngine } from '../../src/transform-engine';
 
 describe('PostmanConverter - Extended Coverage', () => {
   // ==========================================================================
