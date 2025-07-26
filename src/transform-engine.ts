@@ -235,6 +235,22 @@ export const DEFAULT_POSTPROCESS_RULES: TransformRule[] = [
     flags: "g",
     enabled: true
   },
+  {
+    name: "collection-variables-set-to-folder-environment",
+    description: "Convert insomnia.collectionVariables.set to folder environment syntax",
+    pattern: "insomnia\\.collectionVariables\\.set\\(([^,]+),\\s*([^)]+)\\)",
+    replacement: "const thisFolder = insomnia.parentFolders.get('__FOLDER_PLACEHOLDER__');\nthisFolder.environment.set($1, $2)",
+    flags: "g",
+    enabled: true
+  },
+  {
+    name: "collection-variables-get-to-folder-environment",
+    description: "Convert insomnia.collectionVariables.get to folder environment syntax",
+    pattern: "insomnia\\.collectionVariables\\.get\\(([^)]+)\\)",
+    replacement: "insomnia.parentFolders.get('__FOLDER_PLACEHOLDER__').environment.get($1)",
+    flags: "g",
+    enabled: true
+  }
 ];
 
 // =============================================================================
@@ -277,18 +293,18 @@ export class TransformEngine {
       ? [...this.config.preprocess, ...EXPERIMENTAL_PREPROCESS_RULES]
       : this.config.preprocess;
 
-      for (const rule of rules) {
-        if (!rule.enabled) continue;
+    for (const rule of rules) {
+      if (!rule.enabled) continue;
 
-        try {
-          const regex = rule.pattern instanceof RegExp ? rule.pattern : new RegExp(rule.pattern, rule.flags || 'g');
-          transformed = transformed.replace(regex, rule.replacement);
-        } catch (error) {
-          console.warn(`Failed to apply preprocess rule "${rule.name}":`, error);
-        }
+      try {
+        const regex = rule.pattern instanceof RegExp ? rule.pattern : new RegExp(rule.pattern, rule.flags || 'g');
+        transformed = transformed.replace(regex, rule.replacement);
+      } catch (error) {
+        console.warn(`Failed to apply preprocess rule "${rule.name}":`, error);
       }
+    }
 
-      return transformed;
+    return transformed;
   }
 
   /**

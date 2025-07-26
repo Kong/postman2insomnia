@@ -85,6 +85,7 @@ type UrlEncodedParameter = V200UrlEncodedParameter | V210UrlEncodedParameter;
 type FormParameter = V200FormParameter | V210FormParameter;
 type Item = V200Item | V210Item;
 type Folder = V200Folder | V210Folder;
+type CollectionItem = Item | Folder;
 
 type ImportRequest = EntityImportRequest;
 type Parameter = EntityParameter;
@@ -96,8 +97,6 @@ type Parameter = EntityParameter;
 class UUIDGenerator {
   private fileHash: string;
   private baseTime: number;
-  private requestCounter: number = 1;
-  private groupCounter: number = 1;
 
   constructor(rawData: string) {
     this.fileHash = this.simpleHash(rawData);
@@ -236,6 +235,8 @@ export class ImportPostman {
   transformEngine?: TransformEngine;
   addCollectionFolder: boolean;
   includeResponseExamples: boolean;
+  private currentFolderName: string = '';
+  private collectionName: string = '';
 
   constructor(
     collection: PostmanCollection,
@@ -249,6 +250,7 @@ export class ImportPostman {
     this.transformEngine = transformEngine;
     this.addCollectionFolder = addCollectionFolder;
     this.includeResponseExamples = includeResponseExamples;
+    this.collectionName = collection.info.name;
   }
 
   importVariable = (variables: Record<string, string>[]): Record<string, string> | null => {
@@ -266,34 +268,42 @@ export class ImportPostman {
     return variable;
   };
 
-  importItems = (items: PostmanCollection['item'], parentId = '__WORKSPACE_ID__'): ImportRequest[] => {
-    const result: ImportRequest[] = [];
+  importItems = (items: CollectionItem[], parentId: string): ImportRequest[] => {
+    const importedItems: ImportRequest[] = [];
 
     for (const item of items) {
-      if (Object.prototype.hasOwnProperty.call(item, 'request')) {
-        result.push(this.importRequestItem(item as Item, parentId));
+      if (this.isItemGroup(item)) {
+        const previousFolderName = this.currentFolderName;
+        this.currentFolderName = item.name || '';
+
+        const folder = this.importFolderItem(item as Folder, parentId);
+        importedItems.push(folder);
+
+        if ('item' in item && Array.isArray(item.item)) {
+          const nestedItems = this.importItems(item.item as CollectionItem[], folder._id!);
+          importedItems.push(...nestedItems);
+        }
+
+        this.currentFolderName = previousFolderName;
       } else {
-        const requestGroup = this.importFolderItem(item as Folder, parentId);
-        result.push(requestGroup);
-        result.push(...this.importItems((item as Folder).item as PostmanCollection['item'], requestGroup._id!));
+        const request = this.importRequestItem(item as Item, parentId);
+        importedItems.push(request);
       }
     }
 
-    return result;
+    return importedItems;
   };
 
   // Script processing with transform engine support
-  importPreRequestScript = (events: EventList | undefined): string => {
+  importPreRequestScript = (events?: EventList): string => {
     if (events == null) {
       return '';
     }
-
     const preRequestEvent = events.find((event: PostmanEvent) => event.listen === 'prerequest');
     const scriptOrRows = preRequestEvent != null ? preRequestEvent.script : '';
     if (scriptOrRows == null || scriptOrRows === '') {
       return '';
     }
-
     const scriptContent =
       scriptOrRows.exec != null
         ? Array.isArray(scriptOrRows.exec)
@@ -302,20 +312,23 @@ export class ImportPostman {
         : '';
 
     // Use enhanced script transformation with transform engine
-    return translateHandlersInScript(scriptContent, this.transformEngine);
+    let processed = translateHandlersInScript(scriptContent, this.transformEngine);
+
+    // Folder placeholder resolution:
+    processed = this.resolveFolderPlaceholders(processed);
+
+    return processed;
   };
 
-  importAfterResponseScript = (events: EventList | undefined): string => {
+  importAfterResponseScript = (events?: EventList): string => {
     if (events == null) {
       return '';
     }
-
     const afterResponseEvent = events.find((event: PostmanEvent) => event.listen === 'test');
     const scriptOrRows = afterResponseEvent ? afterResponseEvent.script : '';
     if (!scriptOrRows) {
       return '';
     }
-
     const scriptContent = scriptOrRows.exec
       ? Array.isArray(scriptOrRows.exec)
         ? scriptOrRows.exec.join('\n')
@@ -323,7 +336,13 @@ export class ImportPostman {
       : '';
 
     // Use enhanced script transformation with transform engine
-    return translateHandlersInScript(scriptContent, this.transformEngine);
+    let processed = translateHandlersInScript(scriptContent, this.transformEngine);
+
+    // Folder placeholder resolution:
+    processed = this.resolveFolderPlaceholders(processed);
+
+    return processed;
+
   };
 
   importRequestItem = ({ request, name = '', event, response }: Item, parentId: string): ImportRequest => {
@@ -428,28 +447,35 @@ export class ImportPostman {
     );
   };
 
-  importFolderItem = ({ name, description, event, auth }: Folder, parentId: string): ImportRequest => {
-    const { authentication } = this.importAuthentication(auth);
-    const preRequestScript = this.importPreRequestScript(event);
-    const afterResponseScript = this.importAfterResponseScript(event);
+  importFolderItem = (folder: Folder, parentId: string): ImportRequest => {
+    const previousFolderName = this.currentFolderName;
+    this.currentFolderName = folder.name || '';
+
+    const { authentication } = this.importAuthentication(folder.auth);
+    const preRequestScript = this.importPreRequestScript(folder.event);
+    const afterResponseScript = this.importAfterResponseScript(folder.event);
 
     let desc = '';
-    if (typeof description === 'string') {
-      desc = description;
-    } else if (description && typeof description === 'object' && 'content' in description) {
-      desc = description.content || '';
+    if (typeof folder.description === 'string') {
+      desc = folder.description;
+    } else if (folder.description && typeof folder.description === 'object' && 'content' in folder.description) {
+      desc = (folder.description as { content?: string }).content || '';
     }
 
-    return {
+    const folderRequest: ImportRequest = {
       parentId,
       _id: this.uuidGenerator.generateGroupId(),
       _type: 'request_group',
-      name: name || 'Imported Folder',
+      name: folder.name || 'Imported Folder',
       description: desc,
       preRequestScript,
       afterResponseScript,
       authentication,
     };
+
+    this.currentFolderName = previousFolderName;
+
+    return folderRequest;
   };
 
   importCollection = (): ImportRequest[] => {
@@ -766,6 +792,7 @@ export class ImportPostman {
       headers: authHeaders
     };
   };
+
   private convertPostmanToEntityHeader(postmanHeader: V200Header | V210Header): Header {
     return {
       name: (postmanHeader as { key?: string }).key || '',
@@ -780,6 +807,18 @@ export class ImportPostman {
   private isContentTypeHeader(header: V200Header | V210Header): boolean {
     const key = (header as { key?: string }).key;
     return key ? key.toLowerCase() === 'content-type' : false;
+  }
+
+  private resolveFolderPlaceholders(scriptContent: string): string {
+    const folderName = this.currentFolderName || this.collectionName;
+    return scriptContent.replace(/__FOLDER_PLACEHOLDER__/g, folderName);
+  }
+
+  private isItemGroup(item: CollectionItem): item is Folder {
+    return typeof item === 'object' &&
+           item !== null &&
+           'item' in item &&
+           Array.isArray((item as { item?: unknown }).item);
   }
 }
 
