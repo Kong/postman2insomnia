@@ -86,6 +86,20 @@ export interface ConversionResult {
   outputs: string[];
 }
 
+/**
+ * Transforms variable names by replacing dots with underscores for Insomnia compatibility
+ *
+ * @param variableName The original variable name from Postman
+ * @returns The transformed variable name with dots replaced by underscores
+ *
+ * @example
+ * transformVariableName("api.key") // returns "api_key"
+ * transformVariableName("user.profile.name") // returns "user_profile_name"
+ */
+export function transformVariableName(variableName: string): string {
+  return variableName.replace(/\./g, '_');
+}
+
 // =============================================================================
 // ENHANCED FILE PROCESSING WITH TRANSFORMS
 // =============================================================================
@@ -199,7 +213,8 @@ export function convertPostmanEnvironment(envData: PostmanEnvironment): [Insomni
   const data = envData.values.reduce<Record<string, string>>(
     (accumulator, { enabled, key, value }) => {
       if (enabled === false) return accumulator;
-      return { ...accumulator, [key]: value };
+        const transformedKey = transformVariableName(key);
+        return { ...accumulator, [transformedKey]: value };
     },
     {}
   );
