@@ -728,6 +728,53 @@ Example configuration:
 }
 ```
 
+## Variable Name Transformation
+
+Postman collections sometimes use variable names with dots (e.g., `api.base.url`, `auth.token.key`), but Insomnia works better with underscores. This tool automatically transforms these variable names during conversion:
+
+### Environment Variables
+```json
+// Postman Environment
+{
+  "values": [
+    {"key": "api.base.url", "value": "https://api.example.com"},
+    {"key": "auth.token.bearer", "value": "eyJ0eXAi..."}
+  ]
+}
+
+// Converted to Insomnia
+{
+  "data": {
+    "api_base_url": "https://api.example.com",
+    "auth_token_bearer": "eyJ0eXAi..."
+  }
+}
+```
+
+### Collection Variables
+```json
+// Postman Collection
+{
+  "variable": [
+    {"key": "service.timeout.seconds", "value": "30"},
+    {"key": "retry.max.attempts", "value": "3"}
+  ]
+}
+
+// Converted Variables
+{
+  "service_timeout_seconds": "30",
+  "retry_max_attempts": "3"
+}
+```
+
+### What Gets Transformed
+- ✅ **Environment variables**: `database.connection.string` → `database_connection_string`
+- ✅ **Collection variables**: `api.rate.limit` → `api_rate_limit`
+- ✅ **Multiple dots**: `config.auth.oauth.client.id` → `config_auth_oauth_client_id`
+- ✅ **Preserves existing**: Variables without dots remain unchanged
+- ✅ **Respects state**: Disabled variables are still filtered out correctly
+
 ## How This Tool Was Created
 
 This CLI tool was built by extracting and adapting the core conversion logic from **Insomnia's open-source UI codebase**. The original conversion functions were designed for UI integration and database storage. This project:
