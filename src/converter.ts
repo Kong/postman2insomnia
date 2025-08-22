@@ -64,6 +64,36 @@ interface Variable {
 }
 
 // =============================================================================
+// HANDLING WRAPPED POSTMAN COLLECTIONS AND ENVIRONMENTS FROM POSTMAN API
+// =============================================================================
+function unwrapPostmanJson(obj: unknown): unknown {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+    return obj;
+  }
+
+  const asObj = obj as Record<string, unknown>;
+
+  // Direct wrappers for known keys
+  if ('collection' in asObj && isPostmanCollection(asObj['collection'])) {
+    return asObj['collection'];
+  }
+
+  if ('environment' in asObj && isPostmanEnvironment(asObj['environment'])) {
+    return asObj['environment'];
+  }
+
+  // Fallback: recursive search
+  for (const key of Object.keys(asObj)) {
+    const unwrapped = unwrapPostmanJson(asObj[key]);
+    if (isPostmanCollection(unwrapped) || isPostmanEnvironment(unwrapped)) {
+      return unwrapped;
+    }
+  }
+
+  return obj;
+}
+
+// =============================================================================
 // ENHANCED CONVERSION OPTIONS
 // =============================================================================
 
@@ -272,7 +302,15 @@ export async function convertPostmanToInsomnia(
         rawData = transformEngine.preprocess(rawData, options.experimental || false);
       }
 
-      const parsed = JSON.parse(rawData);
+      // const parsed = JSON.parse(rawData);
+      const rawParsed = JSON.parse(rawData);
+      const parsed = unwrapPostmanJson(rawParsed);
+
+      if (options.verbose && parsed !== rawParsed) {
+        console.log(chalk.gray('  Unwrapped content preview:'), JSON.stringify(parsed, null, 2));
+        console.log(chalk.gray('  Detected wrapper and unwrapped it'));
+      }
+
       let converted: ImportRequest[] | null = null;
 
       if (isPostmanEnvironment(parsed)) {
@@ -330,15 +368,20 @@ export async function convertPostmanToInsomnia(
 // =============================================================================
 // ENHANCED POSTMAN CONVERTER WITH TRANSFORM SUPPORT
 // =============================================================================
+
 function convertPostmanCollectionWithTransforms(
   rawData: string,
   transformEngine?: TransformEngine,
   options?: ConversionOptions
 ): ImportRequest[] | null {
   try {
-    //const collection = JSON.parse(rawData);
+    const parsed = JSON.parse(rawData);
+    const unwrapped = unwrapPostmanJson(parsed);
+
+    const unwrappedString = JSON.stringify(unwrapped);
+
     const result = postmanConvert(
-      rawData,
+      unwrappedString, // ✅ Fix: pass unwrapped collection
       transformEngine,
       options?.useCollectionFolder,
       options?.includeResponseExamples
