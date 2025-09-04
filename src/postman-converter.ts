@@ -4,6 +4,7 @@
 
 import { CONTENT_TYPE_JSON, CONTENT_TYPE_PLAINTEXT, CONTENT_TYPE_XML, fakerFunctions, forceBracketNotation } from './converter';
 import { TransformEngine } from './transform-engine';
+import { transformVariableName } from './converter';
 
 import type {
   Converter as EntityConverter,
@@ -23,6 +24,7 @@ import type {
   Request1 as V200Request1,
   Url,
   UrlEncodedParameter as V200UrlEncodedParameter,
+  Variable2 as V200PostmanVariable,
 } from './types/postman-2.0.types';
 
 import type {
@@ -37,6 +39,7 @@ import type {
   QueryParam,
   Request1 as V210Request1,
   UrlEncodedParameter as V210UrlEncodedParameter,
+  Variable2 as V201PostmanVariable,
 } from './types/postman-2.1.types';
 
 import {
@@ -251,19 +254,43 @@ export class ImportPostman {
     this.includeResponseExamples = includeResponseExamples;
   }
 
-  importVariable = (variables: Record<string, string>[]): Record<string, string> | null => {
-    if (variables?.length === 0) {
+  importVariable = (variables: V200PostmanVariable[] | V201PostmanVariable[]): Record<string, string> | null => {
+    if (!variables || variables.length === 0) {
       return null;
     }
 
     const variable: Record<string, string> = {};
-    for (const { key, value } of variables) {
-      if (key === undefined) {
+    for (const postmanVar of variables) {
+      // Handle the different ways Postman stores variable keys
+      const originalKey = postmanVar.key || postmanVar.id || postmanVar.name;
+
+      if (!originalKey) {
         continue;
       }
-      variable[key] = transformPostmanToNunjucksString(value);
+
+      // Skip disabled variables (if disabled field exists)
+      if (postmanVar.disabled === true) {
+        continue;
+      }
+
+      // Transform dots to underscores
+      const transformedKey = transformVariableName(originalKey);
+
+      // Handle different value types from Postman
+      let variableValue: string;
+      if (typeof postmanVar.value === 'string') {
+        variableValue = postmanVar.value;
+      } else if (postmanVar.value && typeof postmanVar.value === 'object') {
+        // Sometimes Postman stores complex values
+        variableValue = JSON.stringify(postmanVar.value);
+      } else {
+        variableValue = String(postmanVar.value || '');
+      }
+
+      variable[transformedKey] = transformPostmanToNunjucksString(variableValue);
     }
-    return variable;
+
+    return Object.keys(variable).length > 0 ? variable : null;
   };
 
   importItems = (items: PostmanCollection['item'], parentId = '__WORKSPACE_ID__'): ImportRequest[] => {
@@ -461,7 +488,7 @@ export class ImportPostman {
       event,
     } = this.collection;
 
-    const postmanVariable = this.importVariable((variable as Record<string, string>[]) || []);
+    const postmanVariable = this.importVariable(variable || []);
     const { authentication } = this.importAuthentication(auth);
     const preRequestScript = this.importPreRequestScript(event);
     const afterResponseScript = this.importAfterResponseScript(event);
@@ -673,45 +700,93 @@ export class ImportPostman {
     if (auth && auth.type !== 'noauth') {
       switch (auth.type) {
         case 'bearer': {
-          const bearerAuth = auth.bearer as V210Auth1[];
-          const tokenField = bearerAuth?.find(field => field.key === 'token');
+          const bearerAuth = auth.bearer;
+          let tokenValue = '';
+
+          if (Array.isArray(bearerAuth)) {
+            // Standard Postman format: [{ key: "token", value: "..." }]
+            const tokenField = bearerAuth.find(field => field.key === 'token');
+            tokenValue = tokenField?.value as string || '';
+          } else if (bearerAuth && typeof bearerAuth === 'object') {
+            // Slack API format: { token: "{{bot_token}}" }
+            const bearerObj = bearerAuth as { token?: string; value?: string };
+            tokenValue = bearerObj.token || bearerObj.value || '';
+          }
+
           authentication = {
             type: 'bearer',
-            token: transformPostmanToNunjucksString(tokenField?.value as string),
+            token: transformPostmanToNunjucksString(tokenValue),
             disabled: false
           };
           break;
         }
-
         case 'basic': {
-          const basicAuth = auth.basic as V210Auth1[];
-          const usernameField = basicAuth?.find(field => field.key === 'username');
-          const passwordField = basicAuth?.find(field => field.key === 'password');
-          authentication = {
-            type: 'basic',
-            username: transformPostmanToNunjucksString(usernameField?.value as string),
-            password: transformPostmanToNunjucksString(passwordField?.value as string),
-            useISO88591: false,
-            disabled: false
-          };
+          const basicAuth = auth.basic;
+
+          if (Array.isArray(basicAuth)) {
+            const usernameField = basicAuth.find(field => field.key === 'username');
+            const passwordField = basicAuth.find(field => field.key === 'password');
+            authentication = {
+              type: 'basic',
+              username: transformPostmanToNunjucksString(usernameField?.value as string),
+              password: transformPostmanToNunjucksString(passwordField?.value as string),
+              useISO88591: false,
+              disabled: false
+            };
+          } else if (basicAuth && typeof basicAuth === 'object') {
+            const basicObj = basicAuth as { username?: string; password?: string };
+            authentication = {
+              type: 'basic',
+              username: transformPostmanToNunjucksString(basicObj.username || ''),
+              password: transformPostmanToNunjucksString(basicObj.password || ''),
+              useISO88591: false,
+              disabled: false
+            };
+          } else {
+            authentication = {
+              type: 'basic',
+              username: '',
+              password: '',
+              useISO88591: false,
+              disabled: false
+            };
+          }
           break;
         }
-
         case 'apikey': {
-          const apikeyAuth = auth.apikey as V210Auth1[];
-          const keyField = apikeyAuth?.find(field => field.key === 'key');
-          const valueField = apikeyAuth?.find(field => field.key === 'value');
-          const inField = apikeyAuth?.find(field => field.key === 'in');
-          authentication = {
-            type: 'apikey',
-            key: transformPostmanToNunjucksString(keyField?.value as string),
-            value: transformPostmanToNunjucksString(valueField?.value as string),
-            addTo: inField?.value === 'header' ? 'header' : 'query',
-            disabled: false
-          };
+          const apikeyAuth = auth.apikey;
+
+          if (Array.isArray(apikeyAuth)) {
+            const keyField = apikeyAuth.find(field => field.key === 'key');
+            const valueField = apikeyAuth.find(field => field.key === 'value');
+            const inField = apikeyAuth.find(field => field.key === 'in');
+            authentication = {
+              type: 'apikey',
+              key: transformPostmanToNunjucksString(keyField?.value as string),
+              value: transformPostmanToNunjucksString(valueField?.value as string),
+              addTo: inField?.value === 'header' ? 'header' : 'query',
+              disabled: false
+            };
+          } else if (apikeyAuth && typeof apikeyAuth === 'object') {
+            const apikeyObj = apikeyAuth as { key?: string; value?: string; in?: string };
+            authentication = {
+              type: 'apikey',
+              key: transformPostmanToNunjucksString(apikeyObj.key || ''),
+              value: transformPostmanToNunjucksString(apikeyObj.value || ''),
+              addTo: apikeyObj.in === 'header' ? 'header' : 'query',
+              disabled: false
+            };
+          } else {
+            authentication = {
+              type: 'apikey',
+              key: '',
+              value: '',
+              addTo: 'header',
+              disabled: false
+            };
+          }
           break;
         }
-
         case 'oauth2': {
           const oauth2Auth = auth.oauth2 as V210Auth1[];
           const accessTokenField = oauth2Auth?.find(field => field.key === 'accessToken');
@@ -728,7 +803,30 @@ export class ImportPostman {
           };
           break;
         }
+        case 'digest': {
+          const digestAuth = auth.digest;
+          let username = '';
+          let password = '';
 
+          if (Array.isArray(digestAuth)) {
+            const digestUsernameField = digestAuth.find(field => field.key === 'username');
+            const digestPasswordField = digestAuth.find(field => field.key === 'password');
+            username = digestUsernameField?.value as string || '';
+            password = digestPasswordField?.value as string || '';
+          } else if (digestAuth && typeof digestAuth === 'object') {
+            const digestObj = digestAuth as { username?: string; password?: string };
+            username = digestObj.username || '';
+            password = digestObj.password || '';
+          }
+
+          authentication = {
+            type: 'digest',
+            username: transformPostmanToNunjucksString(username),
+            password: transformPostmanToNunjucksString(password),
+            disabled: false
+          };
+          break;
+        }
         case 'oauth1':
           authentication = {
             type: 'oauth1',
@@ -742,20 +840,6 @@ export class ImportPostman {
             disabled: false
           };
           break;
-
-        case 'digest': {
-          const digestAuth = auth.digest as V210Auth1[];
-          const digestUsernameField = digestAuth?.find(field => field.key === 'username');
-          const digestPasswordField = digestAuth?.find(field => field.key === 'password');
-          authentication = {
-            type: 'digest',
-            username: transformPostmanToNunjucksString(digestUsernameField?.value as string),
-            password: transformPostmanToNunjucksString(digestPasswordField?.value as string),
-            disabled: false
-          };
-          break;
-        }
-
         default:
           authentication = { disabled: false };
       }

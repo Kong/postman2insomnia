@@ -5,6 +5,35 @@ All notable changes to the Postman to Insomnia CLI converter will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2025-07-30
+
+### Added
+- **Variable Name Transformation** - Automatic conversion of variable names containing dots to underscores for Insomnia compatibility
+  - Environment variables: `api.base.url` → `api_base_url`
+  - Collection variables: `service.timeout.seconds` → `service_timeout_seconds`
+  - Handles multiple dots: `config.database.connection.url` → `config_database_connection_url`
+  - Preserves variables without dots unchanged
+  - Works with both enabled and disabled variable filtering
+
+### Fixed
+- **Authentication Parsing Robustness** - Enhanced authentication handling to support multiple Postman export formats
+  - Fixed `bearerAuth?.find is not a function` error with collections like Slack Web API
+  - Added support for both array format: `[{key: "token", value: "..."}]` and object format: `{token: "..."}`
+  - Improved type safety with proper inline type assertions instead of `any`
+  - Enhanced error handling for malformed authentication data
+  - Covers Bearer, Basic, API Key, OAuth2, and Digest authentication methods
+
+### Enhanced
+- **Type Safety** - Improved TypeScript type handling throughout the conversion pipeline
+- **Test Coverage** - Added comprehensive unit tests for variable transformation and authentication handling
+- **Error Resilience** - Better handling of edge cases in variable and authentication processing
+
+### Technical Details
+- Variable transformation occurs during the core conversion process (not just in scripts)
+- Authentication parsing now gracefully handles both standard Postman formats and alternative export formats
+- Maintains full backward compatibility with existing collections
+- Enhanced collection variable processing with proper key/id/name priority handling
+
 ## [1.8.1] - 2025-01-21
 
 ### Enhanced
