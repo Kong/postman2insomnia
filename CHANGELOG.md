@@ -5,6 +5,12 @@ All notable changes to the Postman to Insomnia CLI converter will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.1] - 2025-09-03
+
+### Added
+- ** feat(ci): Add OpenSSF Scorecard workflow ** -
+  - Added a new GitHub Actions workflow to automatically assess the repository's security posture using the OpenSSF Scorecard. This workflow runs on pushes to main and on a weekly schedule to check for supply-chain security best practices. The results are uploaded to GitHub's code scanning dashboard to provide continuous security insights.
+
 ## [1.9.0] - 2025-07-30
 
 ### Added
