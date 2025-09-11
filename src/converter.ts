@@ -236,12 +236,12 @@ function generateSecureInsomniaUUID(prefix: string): string {
  * @returns An array of Insomnia-compatible objects.
  */
 
-// 👇 Type guard for wrapped environment
-function isWrappedEnv(
-  obj: PostmanEnvironment | { environment: PostmanEnvironment }
-): obj is { environment: PostmanEnvironment } {
-  return typeof (obj as any).environment !== 'undefined';
-}
+// // 👇 Type guard for wrapped environment
+// function isWrappedEnv(
+//   obj: PostmanEnvironment | { environment: PostmanEnvironment }
+// ): obj is { environment: PostmanEnvironment } {
+//   return typeof (obj as any).environment !== 'undefined';
+// }
 
 export function convertPostmanEnvironment(
   envData: PostmanEnvironment | { environment: PostmanEnvironment }):
