@@ -236,20 +236,9 @@ function generateSecureInsomniaUUID(prefix: string): string {
  * @returns An array of Insomnia-compatible objects.
  */
 
-// // 👇 Type guard for wrapped environment
-// function isWrappedEnv(
-//   obj: PostmanEnvironment | { environment: PostmanEnvironment }
-// ): obj is { environment: PostmanEnvironment } {
-//   return typeof (obj as any).environment !== 'undefined';
-// }
-
 export function convertPostmanEnvironment(
   envData: PostmanEnvironment | { environment: PostmanEnvironment }):
   [InsomniaWorkspace, InsomniaEnvironment] {
-
-  // const actualEnv: PostmanEnvironment = isWrappedEnv(envData)
-  //   ? envData.environment
-  //   : envData;
 
   const actualEnv: PostmanEnvironment =
   'environment' in envData ? envData.environment : envData;
@@ -272,7 +261,6 @@ export function convertPostmanEnvironment(
     {
       _id: workspaceId,
       _type: 'workspace',
-      // name: envData.name || 'Imported Environment',
       name: actualEnv.name || 'Imported Environment',
       description: `Imported from Postman ${scope}`,
       parentId: null,
@@ -317,8 +305,6 @@ export async function convertPostmanToInsomnia(
     }
   }
 
-  // const allCollections: ImportRequest[] = [];
-
   for (const file of files) {
     try {
       if (options.verbose) {
@@ -335,7 +321,6 @@ export async function convertPostmanToInsomnia(
         rawData = transformEngine.preprocess(rawData, options.experimental || false);
       }
 
-      // const parsed = JSON.parse(rawData);
       const rawParsed = JSON.parse(rawData);
       const parsed = unwrapPostmanJson(rawParsed);
 
