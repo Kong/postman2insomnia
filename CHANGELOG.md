@@ -5,6 +5,24 @@ All notable changes to the Postman to Insomnia CLI converter will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2025-09-13
+
+### Added
+- **Postman API Wrapper Handling** - Automatic detection and unwrapping of collections and environments exported via the Postman API
+  - Supports collections wrapped in `{ collection: {...} }` format
+  - Supports environments wrapped in `{ environment: {...} }` format
+  - Zero configuration required - automatically detects wrapper format
+  - Maintains full backward compatibility with existing file formats
+
+### Enhanced
+- **Type Safety** - Extended `convertPostmanEnvironment()` to accept both direct and wrapped environment objects
+- **Verbose Logging** - Added logging when wrapper detection and unwrapping occurs
+
+### Technical Details
+- Added `unwrapPostmanJson()` function with type-safe unwrapping and recursive fallback
+- Unwrapping occurs early in conversion pipeline before transform application
+- Comprehensive unit tests in `postman-api-wrapper-handling.test.ts`
+
 ## [1.9.1] - 2025-09-03
 
 ### Added
