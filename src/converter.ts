@@ -64,6 +64,36 @@ interface Variable {
 }
 
 // =============================================================================
+// HANDLING WRAPPED POSTMAN COLLECTIONS AND ENVIRONMENTS FROM POSTMAN API
+// =============================================================================
+function unwrapPostmanJson(obj: unknown): unknown {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+    return obj;
+  }
+
+  const asObj = obj as Record<string, unknown>;
+
+  // Direct wrappers for known keys
+  if ('collection' in asObj && isPostmanCollection(asObj['collection'])) {
+    return asObj['collection'];
+  }
+
+  if ('environment' in asObj && isPostmanEnvironment(asObj['environment'])) {
+    return asObj['environment'];
+  }
+
+  // Fallback: recursive search
+  for (const key of Object.keys(asObj)) {
+    const unwrapped = unwrapPostmanJson(asObj[key]);
+    if (isPostmanCollection(unwrapped) || isPostmanEnvironment(unwrapped)) {
+      return unwrapped;
+    }
+  }
+
+  return obj;
+}
+
+// =============================================================================
 // ENHANCED CONVERSION OPTIONS
 // =============================================================================
 
@@ -205,12 +235,18 @@ function generateSecureInsomniaUUID(prefix: string): string {
  * @param envData The Postman environment data.
  * @returns An array of Insomnia-compatible objects.
  */
-export function convertPostmanEnvironment(envData: PostmanEnvironment): [InsomniaWorkspace, InsomniaEnvironment] {
+
+export function convertPostmanEnvironment(
+  envData: PostmanEnvironment | { environment: PostmanEnvironment }):
+  [InsomniaWorkspace, InsomniaEnvironment] {
+
+  const actualEnv: PostmanEnvironment =
+  'environment' in envData ? envData.environment : envData;
 
   const workspaceId = generateSecureInsomniaUUID('wrk');
   const envId = generateSecureInsomniaUUID('env');
 
-  const data = envData.values.reduce<Record<string, string>>(
+  const data = actualEnv.values.reduce<Record<string, string>>(
     (accumulator, { enabled, key, value }) => {
       if (enabled === false) return accumulator;
         const transformedKey = transformVariableName(key);
@@ -219,13 +255,13 @@ export function convertPostmanEnvironment(envData: PostmanEnvironment): [Insomni
     {}
   );
 
-  const scope = envData._postman_variable_scope || 'environment';
+  const scope = actualEnv._postman_variable_scope || 'environment';
 
   return [
     {
       _id: workspaceId,
       _type: 'workspace',
-      name: envData.name || 'Imported Environment',
+      name: actualEnv.name || 'Imported Environment',
       description: `Imported from Postman ${scope}`,
       parentId: null,
       scope: 'environment'
@@ -233,7 +269,7 @@ export function convertPostmanEnvironment(envData: PostmanEnvironment): [Insomni
     {
       _id: envId,
       _type: 'environment',
-      name: envData.name || 'Base Environment',
+      name: actualEnv.name || 'Base Environment',
       data: data,
       dataPropertyOrder: {},
       color: null,
@@ -269,8 +305,6 @@ export async function convertPostmanToInsomnia(
     }
   }
 
-  // const allCollections: ImportRequest[] = [];
-
   for (const file of files) {
     try {
       if (options.verbose) {
@@ -287,7 +321,14 @@ export async function convertPostmanToInsomnia(
         rawData = transformEngine.preprocess(rawData, options.experimental || false);
       }
 
-      const parsed = JSON.parse(rawData);
+      const rawParsed = JSON.parse(rawData);
+      const parsed = unwrapPostmanJson(rawParsed);
+
+      if (options.verbose && parsed !== rawParsed) {
+        console.log(chalk.gray('  Unwrapped content preview:'), JSON.stringify(parsed, null, 2));
+        console.log(chalk.gray('  Detected wrapper and unwrapped it'));
+      }
+
       let converted: ImportRequest[] | null = null;
 
       if (isPostmanEnvironment(parsed)) {
@@ -352,8 +393,12 @@ function convertPostmanCollectionWithTransforms(
 ): ImportRequest[] | null {
   try {
     //const collection = JSON.parse(rawData);
+    const parsed = JSON.parse(rawData);
+    const unwrapped = unwrapPostmanJson(parsed);
+    const unwrappedString = JSON.stringify(unwrapped);
+
     const result = postmanConvert(
-      rawData,
+      unwrappedString,
       transformEngine,
       options?.useCollectionFolder,
       options?.includeResponseExamples
