@@ -5,6 +5,22 @@ All notable changes to the Postman to Insomnia CLI converter will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.1] - 2025-09-14
+
+### Security
+- **GitHub Actions Hardening** - Enhanced CI/CD security for OpenSSF Scorecard compliance
+  - Added `permissions: read-all` to workflows following principle of least privilege
+  - Pinned all GitHub Actions to commit SHAs instead of mutable tags
+  - Updated `@eslint/plugin-kit` from 0.3.3 to 0.3.5 (fixes GHSA-xffm-g5w8-qvg7 ReDoS vulnerability)
+
+### Enhanced
+- **CI Pipeline Reliability** - Improved test workflow robustness
+  - Added `fail-fast: false` to test all Node.js versions independently
+  - Removed duplicate checkout steps and improved workflow organization
+
+### Removed
+- **Development Scripts** - Cleaned up `clean-build.sh` (functionality available via npm scripts)
+
 ## [1.10.0] - 2025-09-13
 
 ### Added
