@@ -3,30 +3,46 @@ on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
+
+permissions: read-all
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
     strategy:
       matrix:
         node-version: [18.x, 20.x, 24.x]
+      fail-fast: false
+
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@c6295a65d1254861815972266d5933fd6e532bdf # v2.11.1
         with:
           egress-policy: audit
-      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Use Node.js
-        uses: actions/setup-node@v4
+
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
       - name: Install dependencies
         run: npm ci
+
       - name: Run linter
         run: npm run lint:src
+
       - name: Build project
         run: npm run build
+
       - name: Run tests with coverage
         run: npm test
