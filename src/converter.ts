@@ -308,7 +308,7 @@ export async function convertPostmanToInsomnia(
   for (const file of files) {
     try {
       if (options.verbose) {
-        console.log(chalk.gray(`Processing: ${path.basename(file)}`));
+        console.log(chalk.gray(`Processing: ${path.resolve(file)}`));
       }
 
       let rawData = fs.readFileSync(file, 'utf8');
@@ -325,7 +325,6 @@ export async function convertPostmanToInsomnia(
       const parsed = unwrapPostmanJson(rawParsed);
 
       if (options.verbose && parsed !== rawParsed) {
-        console.log(chalk.gray('  Unwrapped content preview:'), JSON.stringify(parsed, null, 2));
         console.log(chalk.gray('  Detected wrapper and unwrapped it'));
       }
 
@@ -352,13 +351,13 @@ export async function convertPostmanToInsomnia(
         }
 
       } else {
-        console.error(chalk.red(`❌ Unknown file format: ${path.basename(file)}`));
+        console.error(chalk.red(`❌ Unknown file format: ${path.resolve(file)}`));
         result.failed++;
         continue;
       }
 
       if (!converted || !Array.isArray(converted)) {
-        console.error(chalk.red(`❌ Failed to convert: ${path.basename(file)}`));
+        console.error(chalk.red(`❌ Failed to convert: ${path.resolve(file)}`));
         result.failed++;
         continue;
       }
@@ -374,7 +373,7 @@ export async function convertPostmanToInsomnia(
       result.successful++;
 
     } catch (error) {
-      console.error(chalk.red(`❌ Error processing ${path.basename(file)}:`),
+      console.error(chalk.red(`❌ Error processing ${path.resolve(file)}:`),
         error instanceof Error ? error.message : error);
       result.failed++;
     }
