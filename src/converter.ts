@@ -328,7 +328,7 @@ export async function convertPostmanToInsomnia(
       let rawParsed: unknown;
       try {
         rawParsed = JSON.parse(rawData);
-      } catch (jsonError: any) {
+      } catch (jsonError) {
         console.error(chalk.red(`❌ Failed to parse JSON in file: ${resolvedFile}`));
         console.error(chalk.yellow(` ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`));
         result.failed++;
