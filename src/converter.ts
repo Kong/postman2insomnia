@@ -52,7 +52,6 @@ export function forceBracketNotation(prefix: string, path: string): string {
 
 // Import existing converter but we'll override the script processing
 import { convert as postmanConvert } from './postman-converter';
-import { error } from 'console';
 
 /**
  * Variable type definition
@@ -279,23 +278,6 @@ export function convertPostmanEnvironment(
       metaSortKey: Date.now()
     }
   ];
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message; // normal Error
-  } else if (typeof error === 'string') {
-    return error; // string error
-  } else if (typeof error === 'object' && error !== null) {
-    // attempt to stringify any object
-    try {
-      return JSON.stringify(error, null, 2);
-    } catch {
-      return String(error); // fallback
-    }
-  } else {
-    return String(error); // fallback for functions, numbers, etc.
-  }
 }
 
 // =============================================================================
