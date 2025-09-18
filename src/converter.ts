@@ -52,6 +52,7 @@ export function forceBracketNotation(prefix: string, path: string): string {
 
 // Import existing converter but we'll override the script processing
 import { convert as postmanConvert } from './postman-converter';
+import { error } from 'console';
 
 /**
  * Variable type definition
@@ -280,6 +281,23 @@ export function convertPostmanEnvironment(
   ];
 }
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message; // normal Error
+  } else if (typeof error === 'string') {
+    return error; // string error
+  } else if (typeof error === 'object' && error !== null) {
+    // attempt to stringify any object
+    try {
+      return JSON.stringify(error, null, 2);
+    } catch {
+      return String(error); // fallback
+    }
+  } else {
+    return String(error); // fallback for functions, numbers, etc.
+  }
+}
+
 // =============================================================================
 // MAIN CONVERSION ORCHESTRATOR WITH TRANSFORMS
 // =============================================================================
@@ -306,12 +324,15 @@ export async function convertPostmanToInsomnia(
   }
 
   for (const file of files) {
+    // Using full file path instead of just file name
+    const resolvedFile = path.resolve(file);
+
     try {
       if (options.verbose) {
-        console.log(chalk.gray(`Processing: ${path.resolve(file)}`));
+        console.log(chalk.gray(`Processing: ${resolvedFile}`));
       }
 
-      let rawData = fs.readFileSync(file, 'utf8');
+      let rawData = fs.readFileSync(resolvedFile, 'utf8');
 
       // PREPROCESSING: Apply transforms to raw Postman JSON
       if (options.preprocess && transformEngine) {
@@ -321,9 +342,18 @@ export async function convertPostmanToInsomnia(
         rawData = transformEngine.preprocess(rawData, options.experimental || false);
       }
 
-      const rawParsed = JSON.parse(rawData);
-      const parsed = unwrapPostmanJson(rawParsed);
+      // Adding try-catch around JSON parsing to handle invalid JSON
+      let rawParsed: unknown;
+      try {
+        rawParsed = JSON.parse(rawData);
+      } catch (jsonError: any) {
+        console.error(chalk.red(`❌ Failed to parse JSON in file: ${resolvedFile}`));
+        console.error(chalk.yellow(` ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`));
+        result.failed++;
+        continue;
+      }
 
+      const parsed = unwrapPostmanJson(rawParsed);
       if (options.verbose && parsed !== rawParsed) {
         console.log(chalk.gray('  Detected wrapper and unwrapped it'));
       }
@@ -342,7 +372,7 @@ export async function convertPostmanToInsomnia(
         }
 
         // Use enhanced postman converter that supports transforms
-        const collectionResult = convertPostmanCollectionWithTransforms(rawData, transformEngine, options);
+        const collectionResult = convertPostmanCollectionWithTransforms(rawData, transformEngine, options, resolvedFile);
 
         if (Array.isArray(collectionResult)) {
           converted = collectionResult;
@@ -351,19 +381,19 @@ export async function convertPostmanToInsomnia(
         }
 
       } else {
-        console.error(chalk.red(`❌ Unknown file format: ${path.resolve(file)}`));
+        console.error(chalk.red(`❌ Unknown file format: ${resolvedFile}`));
         result.failed++;
         continue;
       }
 
       if (!converted || !Array.isArray(converted)) {
-        console.error(chalk.red(`❌ Failed to convert: ${path.resolve(file)}`));
+        console.error(chalk.red(`❌ Failed to convert: ${resolvedFile}`));
         result.failed++;
         continue;
       }
 
-      const insomniaData: InsomniaV5Export = convertToInsomniaV5Format(converted, path.basename(file, '.json'));
-      const outputPath = await writeOutput(insomniaData, file, options);
+      const insomniaData: InsomniaV5Export = convertToInsomniaV5Format(converted, path.basename(resolvedFile, '.json'));
+      const outputPath = await writeOutput(insomniaData, resolvedFile, options);
       result.outputs.push(outputPath);
 
       if (options.verbose) {
@@ -373,12 +403,11 @@ export async function convertPostmanToInsomnia(
       result.successful++;
 
     } catch (error) {
-      console.error(chalk.red(`❌ Error processing ${path.resolve(file)}:`),
-        error instanceof Error ? error.message : error);
+      console.error(chalk.red(`❌ Error processing ${resolvedFile}:`));
+      console.error(chalk.yellow(` ${error instanceof Error ? error.message : String(error)}`));
       result.failed++;
     }
   }
-
   return result;
 }
 
@@ -388,7 +417,8 @@ export async function convertPostmanToInsomnia(
 function convertPostmanCollectionWithTransforms(
   rawData: string,
   transformEngine?: TransformEngine,
-  options?: ConversionOptions
+  options?: ConversionOptions,
+  resolvedFile?: string
 ): ImportRequest[] | null {
   try {
     //const collection = JSON.parse(rawData);
@@ -433,7 +463,8 @@ function convertPostmanCollectionWithTransforms(
       return null;
     }
   } catch (error) {
-    console.error('Error in enhanced Postman conversion:', error);
+    console.error(chalk.red(`❌ Error converting file: ${resolvedFile || 'unknown'}`));
+    console.error(chalk.yellow(` ${error instanceof Error ? error.message : String(error)}`));
     return null;
   }
 }
