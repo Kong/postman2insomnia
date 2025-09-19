@@ -52,6 +52,7 @@ export function forceBracketNotation(prefix: string, path: string): string {
 
 // Import existing converter but we'll override the script processing
 import { convert as postmanConvert } from './postman-converter';
+import { error } from 'console';
 
 /**
  * Variable type definition
@@ -364,12 +365,14 @@ export async function convertPostmanToInsomnia(
 
       } else {
         console.error(chalk.red(`❌ Unknown file format: ${resolvedFile}`));
+        console.error(chalk.yellow(`The file did not match Postman Collection or Environment structure.`));
         result.failed++;
         continue;
       }
 
       if (!converted || !Array.isArray(converted)) {
         console.error(chalk.red(`❌ Failed to convert: ${resolvedFile}`));
+        console.error(chalk.yellow(` Conversion returned null or invalid result.`));
         result.failed++;
         continue;
       }
