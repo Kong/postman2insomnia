@@ -52,7 +52,6 @@ export function forceBracketNotation(prefix: string, path: string): string {
 
 // Import existing converter but we'll override the script processing
 import { convert as postmanConvert } from './postman-converter';
-import { error } from 'console';
 
 /**
  * Variable type definition
