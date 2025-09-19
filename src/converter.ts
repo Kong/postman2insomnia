@@ -32,6 +32,8 @@ import {
   EmptyBody
 } from './types/insomnia-v5.types';
 
+chalk.level = 1;
+
 // Import existing constants and utilities
 export const CONTENT_TYPE_JSON = 'application/json';
 export const CONTENT_TYPE_PLAINTEXT = 'text/plain';
